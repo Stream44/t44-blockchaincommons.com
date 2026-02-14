@@ -2,7 +2,7 @@
 
 exports[`XID Ledger 8. Formatting should match the summary snapshot 1`] = `
 "XID Ledger (4 revisions)
-XID: XID(9075b50b)
+XID: XID(f95374c5)
 
   #0 [e68fd97e] 2025-01-01T00:00:00Z "genesis"
   #1 [e650a82a] 2025-01-02T00:00:00Z "add-bob"

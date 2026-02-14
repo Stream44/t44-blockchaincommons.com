@@ -1,7 +1,7 @@
 #!/usr/bin/env bun test
 
 import * as bunTest from 'bun:test'
-import { run } from 't44/workspace-rt'
+import { run } from 't44/standalone-rt'
 
 const {
     test: { describe, it, expect },
