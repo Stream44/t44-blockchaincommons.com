@@ -1,0 +1,47 @@
+name: 'Gordian Open Integrity Validation'
+description: 'Validate Gordian Open Integrity provenance and commit signatures on a repository'
+author: 'Stream44'
+
+inputs:
+  mark:
+    description: 'Published provenance mark to verify against'
+    required: false
+    default: ''
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        bun install --frozen-lockfile
+
+    - name: Read current mark
+      id: read-mark
+      shell: bash
+      run: |
+        MARK="${{ inputs.mark }}"
+        if [[ -z "$MARK" ]]; then
+          PROVENANCE_FILE=".o/GordianOpenIntegrity.yaml"
+          if [[ -f "$PROVENANCE_FILE" ]]; then
+            MARK=$(grep -oP '"mark":\s*"\K[^"]+' "$PROVENANCE_FILE" || true)
+          fi
+        fi
+        echo "mark=$MARK" >> "$GITHUB_OUTPUT"
+
+    - name: Validate Gordian Open Integrity
+      shell: bash
+      run: |
+        MARK_FLAG=""
+        if [[ -n "${{ steps.read-mark.outputs.mark }}" ]]; then
+          MARK_FLAG="--mark ${{ steps.read-mark.outputs.mark }}"
+        fi
+        bun ${{ github.action_path }}/bin/oi validate GordianOpenIntegrity $MARK_FLAG

@@ -1,0 +1,37 @@
+{
+    "name": "@stream44.studio/t44-blockchaincommons.com",
+    "version": "0.0.0",
+    "private": false,
+    "license": "BSD-2-Clause-Patent",
+    "type": "module",
+    "bin": {
+        "oi": "./bin/oi"
+    },
+    "exports": {
+        "./caps/xid": "./caps/xid.ts",
+        "./caps/open-integrity-sh": "./caps/open-integrity-sh.ts",
+        "./caps/open-integrity-js": "./caps/open-integrity-js.ts",
+        "./caps/provenance-mark": "./caps/provenance-mark.ts",
+        "./caps/XidDocumentLedger": "./caps/XidDocumentLedger.ts",
+        "./caps/GordianOpenIntegrity": "./caps/GordianOpenIntegrity.ts",
+        "./caps/provenance-mark-cli": "./caps/provenance-mark-cli.ts",
+        "./caps/lifehash": "./caps/lifehash.ts"
+    },
+    "dependencies": {
+        "@bcts/xid": "^1.0.0-alpha.19",
+        "@bcts/components": "^1.0.0-alpha.19",
+        "@bcts/provenance-mark": "^1.0.0-alpha.19",
+        "@bcts/provenance-mark-cli": "^1.0.0-alpha.20",
+        "@bcts/lifehash": "^1.0.0-alpha.20",
+        "commander": "^14.0.0",
+        "chalk": "^5.6.2",
+        "t44": "^0.3.0",
+        "@stream44.studio/encapsulate": "^0.3.0",
+        "open-integrity-core": "git+ssh://git@github.com/OpenIntegrityProject/core.git"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.3.4",
+        "@types/node": "^25.0.3",
+        "bun-types": "^1.3.4"
+    }
+}

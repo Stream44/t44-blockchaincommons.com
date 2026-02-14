@@ -1,0 +1,210 @@
+⚠️ **WARNING:** This repository may get squashed and force-pushed if the [GordianOpenIntegrity](https://github.com/Stream44/t44-blockchaincommons.com) implementation must change in incompatible ways. Keep your diffs until the **GordianOpenIntegrity** system is stable.
+
+🔷 **Open Development Project:** The implementation is a preview release for community feedback.
+
+⚠️ **Disclaimer:** Under active development. Code has not been audited, APIs and interfaces are subject to change.
+
+`t44` Capsules for Blockchain Commons
+===
+
+This project [encapsulates](https://github.com/Stream44/encapsulate) the [javascript APIs](https://github.com/leonardocustodio/bcts/tree/main) of the incredible [Gordian Stack](https://developer.blockchaincommons.com/) by [Blockchain Commons](https://www.blockchaincommons.com/) for use in [t44](https://github.com/Stream44/t44).
+Blockchain Commons low-level libraries are wrapped into capsules and combined into new higher order capsules. Standalone use is also possible.
+
+### TODO
+
+- **GordianOpenIntegrity**
+  - [ ] Review terminology and choices with Blockchain Commons.
+    - [ ] Validate or Verify
+  - [ ] Audit logic to ensure all integrity requirements are met and validations make sense.
+  - [ ] JSON Schemas for Gordian Envelope and Provenance Mark properties in `.o/GordianOpenIntegrity.yaml`. Blockchain Commons should define schema on URL so we can link.
+  - [ ] Review `.o/GordianOpenIntegrity.yaml` Gordian Envelope predicate/subject/object structure with Blockchain Commons to ensure compliance.
+  - [ ] Minimal audit script hand coded by third party to validate integrity.
+  - [ ] Third party review of `GordianOpenIntegrity` other than Blockchain Commons.
+  - [ ] Declare `GordianOpenIntegrity` foundation as stable once Blockchain Commons agrees.
+
+Capsules: Higher Order
+---
+
+### `XidDocumentLedger` (XID Document Ledger)
+
+A utility to author a verifiable chain of xid documents.
+
+Combines the `xid` and `provenance-mark` capsules to provide a verifiable ledger according to the [Revisions with Provenance Marks](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2024-010-xid.md#revisions-with-provenance-marks) approach.
+
+Compatible with `provenance-mark-cli` storage format.
+
+### `GordianOpenIntegrity` (Gordian Open Integrity Project)
+
+A utility to record decisions **about** a git repository, **in** the git repository, in a cryptographically rigerous way leveraging XID Documents.
+
+```
+# Initialize a git repository
+bunx @stream44.studio/t44-blockchaincommons.com init [GordianOpenIntegrity] --inception-key ~/.ssh/key
+
+# Validate a git repository
+bunx @stream44.studio/t44-blockchaincommons.com validate [GordianOpenIntegrity]
+```
+
+Github Actions validation workflow: `.github/workflows/gordian-open-integrity.yml`
+```
+name: Validate Gordian Open Integrity
+
+on: [push, pull_request]
+
+jobs:
+  gordian-open-integrity:
+    name: Validate Gordian Open Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: Stream44/t44-blockchaincommons.com@main
+```
+
+The [Open Integrity Project](https://github.com/OpenIntegrityProject) is focused on `git` and its ecosystem and is proposing a `.repo/` directory to store decisions (signed config files). More details here: https://github.com/OpenIntegrityProject/core/blob/main/docs/Open_Integrity_Repo_Directory_Structure.md
+
+The `GordianOpenIntegrity` capsule takes a different *alternative and parallel* approach in that it provides an **open namespace to record all kinds of decisions for all kinds of purposes**.
+
+The inception commit is tied to a XID Document stored in git at `.o/GordianOpenIntegrity.yaml` with the provenance mark generator file kept at `.git/o/GordianOpenIntegrity-generator.yaml`. From there, the Gordian Envelope system is used to **introduce** new decision assets that may be stored at `.o/<domain.tld>/my/path/doc.yaml` and `.git/o/<domain.tld>/my/path/doc-generator.yaml`. Implementers can design their own URI layouts and **Gordian Envelope Spaces**.
+
+The capsule uses a `XidDocumentLedger` per document (across commits) and provides a minimal abstraction for `provenance-mark` enforced ledgers of XID Documents in git repositories tied cryptographically to the Open Integrity repository inception commit. `lifehash` is used to store the inception and current provenance mark at `.o/GordianOpenIntegrity-InceptionLifehash.svg` and `.o/GordianOpenIntegrity-CurrentLifehash.svg` respectively. See *[Provenance](#provenance)* footer below for the lifehash marks for this repository.
+
+Given the latest provenance mark via a publishing channel, users are able to verify the integrity of all decisions recorded against the repository with complete confidence. This verification includes the repository code thus allowing for distribution via public peer-to-peer networks. This is stable foundation for transparent distributed governance and the exploration of cryptographic decision making and relationship building.
+
+`.o/GordianOpenIntegrity.yaml` example from `examples/03-GordianOpenIntegrity/main.test.ts`:
+```
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "envelope": "ur:envelope/lptpsotanshdhdcxesvdmtwlnlrfvevwayoygaberyvtjendqdtewljspsbwpmvsrpjymtrldkvwmubzoytpsojyfljljpieinhsjtgwjoihjtgajtjyihiojpinjykktpsokshnjkjkisdpihieeyececehescxfpfpfpfpfxeoglknhsfxehjzhtfygaehglghfeecfpfpfpfpgafweohtjyjkflengogdksjljyglingafphdhdhdhdieghjoeegdglgteegyimhteogojndykoehhkfyfxetgdhfcxjkiniojtinjtioheihieeyececehesoytpsoksckfljljpieinhsjtgwjoihjtgajtjyihiojpinjykkdmfyjliakpjnihjtjyjktpsoksehkgcpdmjldlihkshsjnjojzihdmiajljndljojljziniakkdlkoehdmkkhsjnjzcpftcphdgafydeieiaidehenetehiadtcpkioyaylftpsohdgltansgylftanshfhdcxolkiwytlsoehmshholmorhfgksladslfptsrwdgabkmdwlghbnbtuofrheoyosfstansgrhdcxdyhymubwbarffpotzcbajtstrfktlnpdbgrlwnoxgsctvofsledkfmckskldjzjsoycsfncsfgoycsfztpsohdjktngdgmgwhflfaxhdimdiwnmwrsemasflkitadwisswtbbemwtifgfdhtwdtlaeaavwkpongsatktvycapefhvapmlgselnqzaetnrdqdhnlpdnhlhgcertndrdrdwdtbaayalopsdiihmuontoiejomybtsthydpoemozckkmwltyannvdhtcmbbbswnfmwneoeyftmocxkszetsvdeycxkpguyaaabbfzenbtsaimwswe",
+  "mark": "a9ea4602",
+  "$defs": {
+    "envelope": {
+      "$ref": "https://datatracker.ietf.org/doc/draft-mcnally-envelope/"
+    },
+    "mark": {
+      "$ref": "https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2025-001-provenance-mark.md"
+    }
+  }
+}
+---
+# Repository DID: did:repo:72749389d090c2e6af2b14508df28aef74efeac8
+# Current Mark: a9ea4602 (🅑 PART WAND FROG ALSO)
+# Inception Mark: eb05b660 (🅑 WARM ARCH RAMP HORN)
+# XID(39e796e9) [
+#     "GordianOpenIntegrity": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3ZtsG6UPxotNiIAXXXXdTp4PNM4QjZ3Um0v1YDC8PV signing_ed25519"
+#     "GordianOpenIntegrity.Documents": "{".o/example.com/policy/v1.yaml":"XID(dcb1681c)"}"
+#     'key': Bytes(78) [
+#         'allow': 'All'
+#     ]
+#     'provenance': Bytes(115)
+# ]
+# Root of trust established using https://github.com/Stream44/t44-blockchaincommons.com
+```
+
+Commits that lead to this document:
+```
+% git log                                                                                                                                 
+commit 233ddac0b263a68f590c984e3ad27cb6e9db300c (HEAD -> main)
+Author: Author <author@example.com>
+Date:   Fri Feb 13 13:22:02 2026 -0500
+
+    [GordianOpenIntegrity] Introduce new Gordian Envelope at: .o/example.com/policy/v1.yaml
+    
+    Signed-off-by: Author <author@example.com>
+
+commit c7757c183fc7013fc4f51f25b86e88a45c736d17
+Author: Author <author@example.com>
+Date:   Fri Feb 13 13:22:02 2026 -0500
+
+    [GordianOpenIntegrity] Establish inception Gordian Envelope at: .o/GordianOpenIntegrity.yaml
+    
+    Trust established using https://github.com/Stream44/t44-BlockchainCommons.com
+    
+    Signed-off-by: Author <author@example.com>
+
+commit bb1408b6ccf40108866a8119d21a8f025a106078
+Author: Author <author@example.com>
+Date:   Fri Feb 13 18:22:02 2026 +0000
+
+    [GordianOpenIntegrity] Establish a SHA-1 root of trust for origin and future commit verification.
+    
+    Signed-off-by: Author <author@example.com>
+    
+    Trust established using https://github.com/Stream44/t44-BlockchainCommons.com
+```
+
+
+Capsules: Low Level
+---
+
+These capsules wrap Blockchain Commons [Gordian Stack](https://developer.blockchaincommons.com/) [javascript](https://github.com/leonardocustodio/bcts/tree/main) libraries.
+
+**NOTE:** Some capsules add additional functionality!
+
+### `xid` (XID: Extensible Identifiers)
+
+An eXtensible IDentifier (XID) is a stable decentralized identifier generated from the hash of an inception key. XIDs resolve to an [envelope](https://developer.blockchaincommons.com/envelope/)-based controller document for managing keys, credentials, and other assertions, and leverage provenance chains for key rotation and revocation without changing the identifier. It does not necessarily to the [DID spec](https://www.w3.org/TR/did-core/), but it is inspired by the same needs and desires.
+
+  * Introduction: https://www.blockchaincommons.com/musings/XIDs-True-SSI/
+  * Project Home: https://developer.blockchaincommons.com/xid/
+  * Research Paper: https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2024-010-xid.md
+
+### `provenance-mark` (Provenance Marks)
+
+A Provenance Mark is a forward-commitment hash chain to establish cryptographic sequential ordering for linked digital objects. Each mark in the chain commits to preceding and subsequent content, preventing retroactive insertion or modification without requiring timestamps or trusted witnesses. This enables tracking of editions, state changes, and histories for controller documents, credentials, and evolving structures.
+
+  * Project Home: https://developer.blockchaincommons.com/provemark/
+  * Research Paper: https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2025-001-provenance-mark.md
+
+### `provenance-mark-cli` (Provenance Mark CLI)
+
+A command line tool for creating and managing Provenance Mark chains.
+
+  * JavaScipt Implementation: https://github.com/leonardocustodio/bcts/tree/main/tools/provenance-mark-cli
+  * Research Paper: https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2025-001-provenance-mark.md
+
+### `open-integrity` (Open Integrity Project)
+
+Open Integrity is an initiative by Blockchain Commons to integrate cryptographic trust mechanisms into Git repositories. By leveraging Git's native SSH signing capabilities and structured verification processes, we ensure transparency, provenance, and immutability for software projects.
+
+  * Project Home: https://github.com/OpenIntegrityProject/core
+
+### `lifehash` (LifeHash)
+
+LifeHash is a method of hash visualization based on Conway’s Game of Life that creates beautiful icons that are deterministic, yet distinct and unique given the input data. It is part of the [OIB](https://developer.blockchaincommons.com/oib/).
+
+  * Introduction: https://developer.blockchaincommons.com/oib/
+  * Project Home: https://developer.blockchaincommons.com/lifehash/
+
+
+Projects
+===
+
+The following projects use `GordianOpenIntegrity`:
+
+- [t44](https://github.com/Stream44/t44) - A web3 + AI ready workspace
+- [Stream44.Studio](https://stream44.studio) - A **full-stack IDE** for building **embodied distributed systems**
+
+
+Provenance
+===
+
+Repository DID: `did:repo:c8f51118b7dca6f9d7303c240b6a683d85e28dab`
+
+<table>
+  <tr>
+    <td><strong>Inception Mark</strong></td>
+    <td><img src=".o/GordianOpenIntegrity-InceptionLifehash.svg" width="64" height="64"></td>
+    <td><strong>Current Mark</strong></td>
+    <td><img src=".o/GordianOpenIntegrity-CurrentLifehash.svg" width="64" height="64"></td>
+    <td>Trust established using<br/><a href="https://github.com/Stream44/t44-blockchaincommons.com">Stream44/t44-BlockchainCommons.com</a></td>
+  </tr>
+</table>
+
+(c) 2026 [Christoph.diy](https://christoph.diy) • Code: `BSD-2-Clause-Patent` • Text: `CC-BY` • Created with [Stream44.Studio](https://Stream44.Studio)
+
+### Credits & Thank You!
+
+* [@ChristopherA](https://github.com/ChristopherA), [@WolfMcNally](https://github.com/wolfmcnally) and [@shannona](https://github.com/shannona) of [Blockchain Commons](https://www.blockchaincommons.com/) for **all original work** on the [The Gordian Stack](https://developer.blockchaincommons.com/).
+* [Leonardo Custodio](https://github.com/leonardocustodio) for porting *The Gordian Stack* **Rust** implementations to **TypeScript**.

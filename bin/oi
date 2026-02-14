@@ -1,0 +1,152 @@
+#!/usr/bin/env bun
+/// <reference types="bun" />
+/// <reference types="node" />
+
+import { resolve } from 'path'
+import { Command } from 'commander'
+import chalk from 'chalk'
+import { CapsuleSpineFactory } from "@stream44.studio/encapsulate/spine-factories/CapsuleSpineFactory.v0"
+import { CapsuleSpineContract } from "@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0/Membrane.v0"
+
+const SUPPORTED_SYSTEMS = ['GordianOpenIntegrity']
+
+async function bootCapsule() {
+    const { encapsulate, freeze, CapsulePropertyTypes, makeImportStack, hoistSnapshot } = await CapsuleSpineFactory({
+        spineFilesystemRoot: resolve(import.meta.dir, '..'),
+        capsuleModuleProjectionRoot: import.meta.dir,
+        enableCallerStackInference: false,
+        spineContracts: {
+            ['#' + CapsuleSpineContract['#']]: CapsuleSpineContract
+        },
+    })
+
+    const spine = await encapsulate({
+        '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
+            '#@stream44.studio/encapsulate/structs/Capsule': {},
+            '#': {
+                oi: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: '@stream44.studio/t44-blockchaincommons.com/caps/GordianOpenIntegrity'
+                },
+            }
+        }
+    }, {
+        importMeta: import.meta,
+        importStack: makeImportStack(),
+        capsuleName: '@stream44.studio/t44-blockchaincommons.com/bin/oi'
+    })
+
+    const snapshot = await freeze()
+    const { run } = await hoistSnapshot({ snapshot })
+
+    return { spine, run }
+}
+
+function validateSystem(system: string) {
+    if (!SUPPORTED_SYSTEMS.includes(system)) {
+        console.error(chalk.red(`Unsupported system: ${system}`))
+        console.error(chalk.white(`Supported systems: ${SUPPORTED_SYSTEMS.join(', ')}`))
+        process.exit(1)
+    }
+}
+
+const program = new Command()
+    .name('@stream44.studio/t44-blockchaincommons.com')
+    .description('Gordian Open Integrity CLI')
+    .version('0.0.1')
+
+program
+    .command('init')
+    .description('Initialize a Gordian Open Integrity repository in the current directory')
+    .argument('<system>', `Integrity system to initialize (${SUPPORTED_SYSTEMS.join(', ')})`)
+    .requiredOption('--inception-key <path>', 'Path to the SSH private key for inception signing')
+    .option('--author-name <name>', 'Author name for git commits', 'Author')
+    .option('--author-email <email>', 'Author email for git commits', 'author@example.com')
+    .action(async (system, opts) => {
+        validateSystem(system)
+
+        const repoDir = resolve(process.cwd())
+        const inceptionKeyPath = resolve(opts.inceptionKey)
+
+        const { spine, run } = await bootCapsule()
+
+        await run({}, async ({ apis }) => {
+            const oi = apis[spine.capsuleSourceLineRef].oi
+
+            console.log(chalk.blue('Creating identity...'))
+            const author = await oi.createIdentity({
+                privateKeyPath: inceptionKeyPath,
+                authorName: opts.authorName,
+                authorEmail: opts.authorEmail,
+            })
+
+            console.log(chalk.blue('Creating repository...'))
+            const result = await oi.createRepository({
+                repoDir,
+                author,
+            })
+
+            const markId = await oi.getMarkIdentifier({ mark: result.mark })
+
+            console.log()
+            console.log(chalk.green('✓ Gordian Open Integrity repository initialized'))
+            console.log(chalk.white(`  DID:  ${result.did}`))
+            console.log(chalk.white(`  Mark: ${markId}`))
+            console.log(chalk.white(`  Dir:  ${repoDir}`))
+        })
+    })
+
+program
+    .command('validate')
+    .description('Validate a Gordian Open Integrity repository in the current directory')
+    .argument('<system>', `Integrity system to validate (${SUPPORTED_SYSTEMS.join(', ')})`)
+    .option('--mark <mark>', 'Published provenance mark to verify against')
+    .action(async (system, opts) => {
+        validateSystem(system)
+
+        const repoDir = resolve(process.cwd())
+
+        const { spine, run } = await bootCapsule()
+
+        await run({}, async ({ apis }) => {
+            const oi = apis[spine.capsuleSourceLineRef].oi
+
+            console.log(chalk.blue('Validating repository...'))
+            const result = await oi.verify({
+                repoDir,
+                mark: opts.mark,
+            })
+
+            console.log()
+            if (result.valid) {
+                console.log(chalk.green('✓ Repository integrity verified'))
+            } else {
+                console.log(chalk.red('✗ Repository integrity verification failed'))
+            }
+
+            console.log(chalk.white(`  XID:                ${result.xid || 'N/A'}`))
+            console.log(chalk.white(`  DID:                ${result.did || 'N/A'}`))
+            console.log(chalk.white(`  Commits:            ${result.totalCommits} total, ${result.validSignatures} valid, ${result.invalidSignatures} invalid`))
+            console.log(chalk.white(`  Provenance versions: ${result.provenanceVersions}`))
+            console.log(chalk.white(`  Marks monotonic:    ${result.marksMonotonic ? 'yes' : 'no'}`))
+            console.log(chalk.white(`  XID stable:         ${result.xidStable ? 'yes' : 'no'}`))
+
+            if (opts.mark) {
+                console.log(chalk.white(`  Mark matches latest: ${result.markMatchesLatest ? 'yes' : 'no'}`))
+            }
+
+            if (result.issues.length > 0) {
+                console.log()
+                console.log(chalk.red('Issues:'))
+                for (const issue of result.issues) {
+                    console.log(chalk.red(`  - ${issue}`))
+                }
+            }
+
+            if (!result.valid) {
+                process.exit(1)
+            }
+        })
+    })
+
+program.parse(process.argv)
