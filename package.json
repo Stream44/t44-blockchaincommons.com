@@ -1,6 +1,6 @@
 {
     "name": "@stream44.studio/t44-blockchaincommons.com",
-    "version": "0.1.0-rc.3",
+    "version": "0.1.0-rc.4",
     "private": false,
     "license": "BSD-2-Clause-Patent",
     "type": "module",
@@ -25,8 +25,8 @@
         "@bcts/lifehash": "^1.0.0-alpha.20",
         "commander": "^14.0.0",
         "chalk": "^5.6.2",
-        "t44": "^0.4.0-rc.3",
-        "@stream44.studio/encapsulate": "^0.4.0-rc.3",
+        "t44": "^0.4.0-rc.4",
+        "@stream44.studio/encapsulate": "^0.4.0-rc.4",
         "open-integrity-core": "git+ssh://git@github.com/OpenIntegrityProject/core.git"
     },
     "devDependencies": {
