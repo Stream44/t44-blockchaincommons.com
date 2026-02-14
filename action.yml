@@ -1,5 +1,5 @@
 name: 'Gordian Open Integrity Validation'
-description: 'Validate Gordian Open Integrity provenance and commit signatures on a repository'
+description: 'Gordian Open Integrity provenance and commit signatures on a repository'
 author: 'Stream44'
 
 inputs:
@@ -37,7 +37,7 @@ runs:
         fi
         echo "mark=$MARK" >> "$GITHUB_OUTPUT"
 
-    - name: Validate Gordian Open Integrity
+    - name: Gordian Open Integrity
       shell: bash
       run: |
         MARK_FLAG=""
