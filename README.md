@@ -45,7 +45,7 @@ bunx @stream44.studio/t44-blockchaincommons.com init [GordianOpenIntegrity] --in
 bunx @stream44.studio/t44-blockchaincommons.com validate [GordianOpenIntegrity]
 ```
 
-Github Actions validation workflow: `.github/workflows/gordian-open-integrity.yml`
+Github Actions validation workflow: `.github/workflows/gordian-open-integrity.yaml`
 ```
 name: Gordian Open Integrity
 
@@ -190,7 +190,7 @@ The following projects use `GordianOpenIntegrity`:
 Provenance
 ===
 
-[![Gordian Open Integrity](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/gordian-open-integrity.yml/badge.svg)](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/gordian-open-integrity.yml?query=branch%3Amain) [![DCO Signatures](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/dco.yml/badge.svg)](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/dco.yml?query=branch%3Amain)
+[![Gordian Open Integrity](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/gordian-open-integrity.yaml/badge.svg)](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/gordian-open-integrity.yaml?query=branch%3Amain) [![DCO Signatures](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/dco.yaml/badge.svg)](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/dco.yaml?query=branch%3Amain)
 
 Repository DID: `did:repo:c8f51118b7dca6f9d7303c240b6a683d85e28dab`
 
