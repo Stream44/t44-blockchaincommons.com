@@ -42,6 +42,19 @@ async function bootCapsule() {
     return { spine, run }
 }
 
+async function getGitConfig(key: string, cwd: string): Promise<string | undefined> {
+    try {
+        const proc = Bun.spawn(['git', 'config', '--get', key], { cwd, stdout: 'pipe', stderr: 'pipe' })
+        const stdout = await new Response(proc.stdout).text()
+        const exitCode = await proc.exited
+        if (exitCode !== 0) return undefined
+        const value = stdout.trim()
+        return value || undefined
+    } catch {
+        return undefined
+    }
+}
+
 function validateSystem(system: string) {
     if (!SUPPORTED_SYSTEMS.includes(system)) {
         console.error(chalk.red(`Unsupported system: ${system}`))
@@ -60,13 +73,16 @@ program
     .description('Initialize a Gordian Open Integrity repository in the current directory')
     .argument('[system]', `Integrity system to initialize (${SUPPORTED_SYSTEMS.join(', ')})`, 'GordianOpenIntegrity')
     .requiredOption('--inception-key <path>', 'Path to the SSH private key for inception signing')
-    .option('--author-name <name>', 'Author name for git commits', 'Author')
-    .option('--author-email <email>', 'Author email for git commits', 'author@example.com')
+    .option('--author-name <name>', 'Author name for git commits')
+    .option('--author-email <email>', 'Author email for git commits')
     .action(async (system, opts) => {
         validateSystem(system)
 
         const repoDir = resolve(process.cwd())
         const inceptionKeyPath = resolve(opts.inceptionKey)
+
+        const authorName = opts.authorName || await getGitConfig('user.name', repoDir) || 'Author'
+        const authorEmail = opts.authorEmail || await getGitConfig('user.email', repoDir) || 'author@example.com'
 
         const { spine, run } = await bootCapsule()
 
@@ -76,8 +92,8 @@ program
             console.log(chalk.blue('Creating identity...'))
             const author = await oi.createIdentity({
                 privateKeyPath: inceptionKeyPath,
-                authorName: opts.authorName,
-                authorEmail: opts.authorEmail,
+                authorName,
+                authorEmail,
             })
 
             console.log(chalk.blue('Creating repository...'))
