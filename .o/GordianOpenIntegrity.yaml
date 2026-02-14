@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "envelope": "ur:envelope/lrtpsotanshdhdcxhsbtonkiisgrhegyaxdamowmherhoemodnhpurylgysocnattsgdlylksrykvymhoyaylftpsohdgltansgylftanshfhdcxwmfzjehtcmnygspaladssskkvlbgjppkbniezthsptemmocntktiwefdgrfzeysttansgrhdcxeyhtdaayjyutmsqzketorhnyetfyaokovtgdinfdrlkpdarkoyvtmutastjnkiasoycsfncsfgoycsfztpsohdjktngdgmgwhflfaxhdimyawzaxjtlddndnlecyqzvdclkskotksafsskdmlgwpbgdszmrerncmuofpaxmkkeahluwnmoidbsiypedmaozsneykjpplurloolghesjedwjtbzstimswwladghiartmkonaauogyfefnmnwzzsdratguaaoekkkipkmsecfykefwbkjldytpwmnlueyahpssfristkahtniecttihyoytpsojyfljljpieinhsjtgwjoihjtgajtjyihiojpinjykktpsokshnjkjkisdpihieeyececehescxfpfpfpfpfxeoglknhsfxehjzhtfygaehglghfeecfpfpfpfpgagdjtgoknhkfxgokpkkgmflgmgleogsdniofdemksksghgaidhdethfjnjegtecfxfphfeeflkphdkkjzkogwfecxjyeeeedpjkiniojtinjtiodpjeihkkaytyoxwl",
+  "mark": "946be460",
+  "$defs": {
+    "envelope": {
+      "$ref": "https://datatracker.ietf.org/doc/draft-mcnally-envelope/"
+    },
+    "mark": {
+      "$ref": "https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2025-001-provenance-mark.md"
+    }
+  }
+}
+---
+# Repository DID: did:repo:c8f51118b7dca6f9d7303c240b6a683d85e28dab
+# Current Mark: 946be460 (🅑 MEOW JADE VIBE HORN)
+# Inception Mark: 931e4bf4 (🅑 MENU COOK GEAR WORK)
+# XID(610da57d) [
+#     'key': Bytes(78) [
+#         'allow': 'All'
+#     ]
+#     'provenance': Bytes(115)
+#     "GordianOpenIntegrity": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPnUzYCUuyRGRN3L+gH7xxTIbX8VmkM5CAV4GuXylvOE t44-signing-key"
+# ]
+# Trust established using https://github.com/Stream44/t44-BlockchainCommons.com
