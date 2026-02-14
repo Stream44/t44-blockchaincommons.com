@@ -58,7 +58,7 @@ const program = new Command()
 program
     .command('init')
     .description('Initialize a Gordian Open Integrity repository in the current directory')
-    .argument('<system>', `Integrity system to initialize (${SUPPORTED_SYSTEMS.join(', ')})`)
+    .argument('[system]', `Integrity system to initialize (${SUPPORTED_SYSTEMS.join(', ')})`, 'GordianOpenIntegrity')
     .requiredOption('--inception-key <path>', 'Path to the SSH private key for inception signing')
     .option('--author-name <name>', 'Author name for git commits', 'Author')
     .option('--author-email <email>', 'Author email for git commits', 'author@example.com')
@@ -99,7 +99,7 @@ program
 program
     .command('validate')
     .description('Validate a Gordian Open Integrity repository in the current directory')
-    .argument('<system>', `Integrity system to validate (${SUPPORTED_SYSTEMS.join(', ')})`)
+    .argument('[system]', `Integrity system to validate (${SUPPORTED_SYSTEMS.join(', ')})`, 'GordianOpenIntegrity')
     .option('--mark <mark>', 'Published provenance mark to verify against')
     .action(async (system, opts) => {
         validateSystem(system)
