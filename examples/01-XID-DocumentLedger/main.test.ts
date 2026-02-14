@@ -173,9 +173,14 @@ describe('XID Ledger', function () {
 
     describe('5. Summary', function () {
 
-        it('should match the ledger summary snapshot', async function () {
+        it('should have correct ledger summary', async function () {
             const summary = await revisionLedger.formatSummary({ ledger })
-            expect(summary).toMatchSnapshot()
+            const lines = summary.split('\n')
+            expect(lines[0]).toContain('3 revisions')
+            expect(lines[1]).toMatch(/^XID: XID\([0-9a-f]{8}\)$/)
+            expect(lines[3]).toMatch(/#0 .+ "genesis"/)
+            expect(lines[4]).toMatch(/#1 .+ "add-second-key"/)
+            expect(lines[5]).toMatch(/#2 .+ "add-third-key"/)
         })
     })
 

@@ -7,6 +7,9 @@
     "bin": {
         "oi": "./bin/oi"
     },
+    "scripts": {
+        "test": "bun test"
+    },
     "exports": {
         "./caps/xid": "./caps/xid.ts",
         "./caps/open-integrity-sh": "./caps/open-integrity-sh.ts",

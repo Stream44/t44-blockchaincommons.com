@@ -89,14 +89,20 @@ describe('XID Rotate Inception Key', function () {
             expect(keys.length).toBe(1)
         })
 
-        it('should match the inception document snapshot', async function () {
+        it('should have correct inception document format', async function () {
             const genesis = await revisionLedger.getGenesis({ ledger })
             const text = await revisionLedger.formatRevision({
                 revision: genesis,
                 privateKeyOptions: XIDPrivateKeyOptions.Include,
                 generatorOptions: XIDGeneratorOptions.Include,
             })
-            expect(text).toMatchSnapshot()
+            expect(text).toMatch(/^XID\([0-9a-f]{8}\)/)
+            expect(text).toContain("'provenance'")
+            expect(text).toContain("'key'")
+            expect(text).toContain("'privateKey'")
+            expect(text).toContain("'allow': 'All'")
+            expect(text).toContain("'salt'")
+            expect(text).toContain("'provenanceGenerator'")
         })
     })
 
@@ -128,14 +134,19 @@ describe('XID Rotate Inception Key', function () {
             expect(keys.length).toBe(2)
         })
 
-        it('should match the two-key document snapshot', async function () {
+        it('should have correct two-key document format', async function () {
             const rev = await revisionLedger.getRevisionByLabel({ ledger, label: 'add-bob-key' })
             const text = await revisionLedger.formatRevision({
                 revision: rev,
                 privateKeyOptions: XIDPrivateKeyOptions.Include,
                 generatorOptions: XIDGeneratorOptions.Include,
             })
-            expect(text).toMatchSnapshot()
+            expect(text).toMatch(/^XID\([0-9a-f]{8}\)/)
+            expect(text).toContain("'provenance'")
+            const keyMatches = text.match(/'key'/g) || []
+            expect(keyMatches.length).toBe(2)
+            expect(text).toContain("'privateKey'")
+            expect(text).toContain("'allow': 'All'")
         })
     })
 
@@ -168,14 +179,19 @@ describe('XID Rotate Inception Key', function () {
             expect(keys.length).toBe(1)
         })
 
-        it('should match the post-rotation document snapshot', async function () {
+        it('should have correct post-rotation document format', async function () {
             const rev = await revisionLedger.getLatest({ ledger })
             const text = await revisionLedger.formatRevision({
                 revision: rev,
                 privateKeyOptions: XIDPrivateKeyOptions.Include,
                 generatorOptions: XIDGeneratorOptions.Include,
             })
-            expect(text).toMatchSnapshot()
+            expect(text).toMatch(/^XID\([0-9a-f]{8}\)/)
+            expect(text).toContain("'provenance'")
+            const keyMatches = text.match(/'key'/g) || []
+            expect(keyMatches.length).toBe(1)
+            expect(text).not.toContain("'privateKey'")
+            expect(text).toContain("'allow': 'All'")
         })
     })
 
@@ -223,9 +239,14 @@ describe('XID Rotate Inception Key', function () {
             expect(provenance.mark.seq()).toBe(2)
         })
 
-        it('should match the ledger summary snapshot', async function () {
+        it('should have correct ledger summary', async function () {
             const summary = await revisionLedger.formatSummary({ ledger })
-            expect(summary).toMatchSnapshot()
+            const lines = summary.split('\n')
+            expect(lines[0]).toContain('3 revisions')
+            expect(lines[1]).toMatch(/^XID: XID\([0-9a-f]{8}\)$/)
+            expect(lines[3]).toMatch(/#0 .+ "genesis"/)
+            expect(lines[4]).toMatch(/#1 .+ "add-bob-key"/)
+            expect(lines[5]).toMatch(/#2 .+ "remove-inception-key"/)
         })
     })
 

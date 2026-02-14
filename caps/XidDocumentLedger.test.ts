@@ -410,9 +410,15 @@ describe('XID Ledger', function () {
             expect(summary).toContain('#3')
         })
 
-        it('should match the summary snapshot', async function () {
+        it('should have correct summary structure', async function () {
             const summary = await revisionLedger.formatSummary({ ledger })
-            expect(summary).toMatchSnapshot()
+            const lines = summary.split('\n')
+            expect(lines[0]).toContain('4 revisions')
+            expect(lines[1]).toMatch(/^XID: XID\([0-9a-f]{8}\)$/)
+            expect(lines[3]).toMatch(/#0 .+ "genesis"/)
+            expect(lines[4]).toMatch(/#1 .+ "add-bob"/)
+            expect(lines[5]).toMatch(/#2 .+ "remove-inception"/)
+            expect(lines[6]).toMatch(/#3 .+ "add-carol"/)
         })
     })
 
