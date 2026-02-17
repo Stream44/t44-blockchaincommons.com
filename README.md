@@ -4,7 +4,7 @@
 
 ⚠️ **Disclaimer:** Under active development. Code has not been audited, APIs and interfaces are subject to change.
 
-`t44` Capsules for Blockchain Commons
+`t44` Capsules for Blockchain Commons [![Tests](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/test.yaml/badge.svg)](https://github.com/Stream44/t44-blockchaincommons.com/actions/workflows/test.yaml?query=branch%3Amain)
 ===
 
 This project [encapsulates](https://github.com/Stream44/encapsulate) the [javascript APIs](https://github.com/leonardocustodio/bcts/tree/main) of the incredible [Gordian Stack](https://developer.blockchaincommons.com/) by [Blockchain Commons](https://www.blockchaincommons.com/) for use in [t44](https://github.com/Stream44/t44).
