@@ -53,10 +53,10 @@ async function runScript(scriptPath: string, args: string[], options: { cwd: str
     await chmod(scriptPath, 0o755).catch(() => { })
     const configPath = await ensureGitSigningConfig()
     const escaped = [scriptPath, ...args].map(a => $.escape(a)).join(' ')
+    // Set ZDOTDIR to a non-existent path so zsh skips .zshenv/.zshrc (which trigger bun/workspace activation)
     // Set GIT_CONFIG_GLOBAL so the scripts find the required signing config
-    // Use bash instead of zsh for better CI compatibility (GitHub Actions Ubuntu runners)
-    const env = { ...process.env, GIT_CONFIG_GLOBAL: configPath, ...options.env }
-    const result = await $`/bin/bash ${{ raw: escaped }}`.cwd(options.cwd).env(env).nothrow().quiet()
+    const env = { ...process.env, ZDOTDIR: '/tmp/.zsh-no-dotfiles', GIT_CONFIG_GLOBAL: configPath, ...options.env }
+    const result = await $`/bin/zsh --no-rcs ${{ raw: escaped }}`.cwd(options.cwd).env(env).nothrow().quiet()
     return {
         stdout: result.stdout.toString().trim(),
         stderr: result.stderr.toString().trim(),
