@@ -58,6 +58,13 @@ const repoDir = await fs.join({ parts: [workbenchDir, 'test-repo'] })
 const keysDir = await fs.join({ parts: [workbenchDir, 'keys'] })
 
 describe('Open Integrity SH (shell script delegation)', function () {
+    if (process.env.CI) {
+        it('skipping all SH tests in CI (require zsh)', function () {
+            console.log('\n   ⚠️  Skipping all Open Integrity SH tests: require zsh (macOS only)')
+            expect(true).toBe(true)
+        })
+        return
+    }
 
     describe('1. GordianOpenIntegrity repo compatibility with SH tool', function () {
 
@@ -167,12 +174,6 @@ describe('Open Integrity SH (shell script delegation)', function () {
     describe('4. snippet_template.sh', function () {
 
         it('should show file status in default format', async function () {
-            if (process.env.CI) {
-                console.log('\n   ⚠️  Skipping test: snippet_template.sh requires BSD stat (macOS only)')
-                expect(true).toBe(true)
-                return
-            }
-
             const testFile = await fs.join({ parts: [workbenchDir, 'test-file.txt'] })
             await fs.writeFile({ path: testFile, content: 'hello world' })
 
@@ -186,12 +187,6 @@ describe('Open Integrity SH (shell script delegation)', function () {
         })
 
         it('should show file status in json format', async function () {
-            if (process.env.CI) {
-                console.log('\n   ⚠️  Skipping test: snippet_template.sh requires BSD stat (macOS only)')
-                expect(true).toBe(true)
-                return
-            }
-
             const testFile = await fs.join({ parts: [workbenchDir, 'test-file.txt'] })
 
             const result = await oi.showFileStatus({
@@ -208,12 +203,6 @@ describe('Open Integrity SH (shell script delegation)', function () {
     describe('5. Cross-script workflow', function () {
 
         it('should create repo, get DID, and audit in sequence', async function () {
-            if (process.env.CI) {
-                console.log('\n   ⚠️  Skipping test: setup_git_inception_repo.sh requires zsh features (macOS only)')
-                expect(true).toBe(true)
-                return
-            }
-
             const workflowRepoDir = await fs.join({ parts: [workbenchDir, 'workflow-repo'] })
 
             // Create inception repo
