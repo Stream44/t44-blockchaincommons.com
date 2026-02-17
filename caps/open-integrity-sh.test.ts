@@ -167,12 +167,6 @@ describe('Open Integrity SH (shell script delegation)', function () {
     describe('4. snippet_template.sh', function () {
 
         it('should show file status in default format', async function () {
-            if (!process.stdin.isTTY || process.env.CI) {
-                console.log('\n   ⚠️  Skipping test: snippet_template.sh requires BSD stat (macOS only)')
-                expect(true).toBe(true)
-                return
-            }
-
             const testFile = await fs.join({ parts: [workbenchDir, 'test-file.txt'] })
             await fs.writeFile({ path: testFile, content: 'hello world' })
 
@@ -186,12 +180,6 @@ describe('Open Integrity SH (shell script delegation)', function () {
         })
 
         it('should show file status in json format', async function () {
-            if (!process.stdin.isTTY || process.env.CI) {
-                console.log('\n   ⚠️  Skipping test: snippet_template.sh requires BSD stat (macOS only)')
-                expect(true).toBe(true)
-                return
-            }
-
             const testFile = await fs.join({ parts: [workbenchDir, 'test-file.txt'] })
 
             const result = await oi.showFileStatus({
