@@ -139,4 +139,4 @@ export async function capsule({
         capsuleName: capsule['#'],
     })
 }
-capsule['#'] = 't44/caps/providers/blockchaincommons.com/lifehash'
+capsule['#'] = '@stream44.studio/t44-blockchaincommons.com/caps/lifehash'

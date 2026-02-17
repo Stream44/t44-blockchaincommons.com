@@ -30,7 +30,7 @@ const {
     }, {
         importMeta: import.meta,
         importStack: makeImportStack(),
-        capsuleName: 't44/caps/providers/blockchaincommons.com/provenance-mark.test'
+        capsuleName: '@stream44.studio/t44-blockchaincommons.com/caps/provenance-mark.test'
     })
     return { spine }
 }, async ({ spine, apis }: any) => {

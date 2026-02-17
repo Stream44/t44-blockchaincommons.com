@@ -2,15 +2,12 @@
 
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir, writeFile } from 'fs/promises'
-
-const WORK_DIR = join(import.meta.dir, '.~lifehash')
 
 const {
-    test: { describe, it, expect },
+    test: { describe, it, expect, workbenchDir },
     lifehash,
     provenanceMark,
+    fs,
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -34,6 +31,10 @@ const {
                     type: CapsulePropertyTypes.Mapping,
                     value: './provenance-mark'
                 },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './fs'
+                },
             }
         }
     }, {
@@ -47,9 +48,6 @@ const {
 }, {
     importMeta: import.meta
 })
-
-await rm(WORK_DIR, { recursive: true, force: true })
-await mkdir(WORK_DIR, { recursive: true })
 
 describe('LifeHash Capsule', function () {
 
@@ -67,9 +65,9 @@ describe('LifeHash Capsule', function () {
             expect(image.colors.length).toBe(32 * 32 * 3)
 
             const ppm = await lifehash.toPPM({ image })
-            await writeFile(join(WORK_DIR, 'hello-world.ppm'), ppm)
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'hello-world.ppm'] }), content: ppm })
             const svg = await lifehash.toSVG({ image })
-            await writeFile(join(WORK_DIR, 'hello-world.svg'), svg)
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'hello-world.svg'] }), content: svg })
         })
 
         it('should generate a larger image with moduleSize', async function () {
@@ -107,28 +105,28 @@ describe('LifeHash Capsule', function () {
             const image = await lifehash.makeFromUtf8({ input: 'test', version: 'version1' })
             expect(image.width).toBe(32)
             expect(image.height).toBe(32)
-            await writeFile(join(WORK_DIR, 'version1.svg'), await lifehash.toSVG({ image }))
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'version1.svg'] }), content: await lifehash.toSVG({ image }) })
         })
 
         it('should generate detailed image (32x32)', async function () {
             const image = await lifehash.makeFromUtf8({ input: 'test', version: 'detailed' })
             expect(image.width).toBe(64)
             expect(image.height).toBe(64)
-            await writeFile(join(WORK_DIR, 'detailed.svg'), await lifehash.toSVG({ image }))
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'detailed.svg'] }), content: await lifehash.toSVG({ image }) })
         })
 
         it('should generate fiducial image (32x32)', async function () {
             const image = await lifehash.makeFromUtf8({ input: 'test', version: 'fiducial' })
             expect(image.width).toBe(32)
             expect(image.height).toBe(32)
-            await writeFile(join(WORK_DIR, 'fiducial.svg'), await lifehash.toSVG({ image }))
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'fiducial.svg'] }), content: await lifehash.toSVG({ image }) })
         })
 
         it('should generate grayscale fiducial image', async function () {
             const image = await lifehash.makeFromUtf8({ input: 'test', version: 'grayscale_fiducial' })
             expect(image.width).toBe(32)
             expect(image.height).toBe(32)
-            await writeFile(join(WORK_DIR, 'grayscale-fiducial.svg'), await lifehash.toSVG({ image }))
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'grayscale-fiducial.svg'] }), content: await lifehash.toSVG({ image }) })
         })
 
         it('should produce different images for different versions', async function () {
@@ -209,8 +207,8 @@ describe('LifeHash Capsule', function () {
             expect(image.colors).toBeInstanceOf(Uint8Array)
             expect(image.colors.length).toBe(32 * 32 * 3)
 
-            await writeFile(join(WORK_DIR, 'provenance-mark-identifier.svg'), await lifehash.toSVG({ image }))
-            await writeFile(join(WORK_DIR, 'provenance-mark-identifier.ppm'), await lifehash.toPPM({ image }))
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'provenance-mark-identifier.svg'] }), content: await lifehash.toSVG({ image }) })
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'provenance-mark-identifier.ppm'] }), content: await lifehash.toPPM({ image }) })
         })
 
         it('should generate a lifehash from the mark hash bytes', async function () {
@@ -221,7 +219,7 @@ describe('LifeHash Capsule', function () {
             expect(image.width).toBe(32)
             expect(image.height).toBe(32)
 
-            await writeFile(join(WORK_DIR, 'provenance-mark-hash.svg'), await lifehash.toSVG({ image }))
+            await fs.writeFile({ path: await fs.join({ parts: [workbenchDir, 'provenance-mark-hash.svg'] }), content: await lifehash.toSVG({ image }) })
         })
 
         it('should produce a deterministic lifehash for the same mark', async function () {

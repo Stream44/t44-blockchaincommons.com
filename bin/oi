@@ -72,14 +72,16 @@ program
     .command('init')
     .description('Initialize a Gordian Open Integrity repository in the current directory')
     .argument('[system]', `Integrity system to initialize (${SUPPORTED_SYSTEMS.join(', ')})`, 'GordianOpenIntegrity')
-    .requiredOption('--inception-key <path>', 'Path to the SSH private key for inception signing')
+    .requiredOption('--first-trust-key <path>', 'Path to the SSH Ed25519 private key for first trust signing')
+    .requiredOption('--provenance-key <path>', 'Path to the SSH Ed25519 private key for provenance')
     .option('--author-name <name>', 'Author name for git commits')
     .option('--author-email <email>', 'Author email for git commits')
     .action(async (system, opts) => {
         validateSystem(system)
 
         const repoDir = resolve(process.cwd())
-        const inceptionKeyPath = resolve(opts.inceptionKey)
+        const firstTrustKeyPath = resolve(opts.firstTrustKey)
+        const provenanceKeyPath = resolve(opts.provenanceKey)
 
         const authorName = opts.authorName || await getGitConfig('user.name', repoDir) || 'Author'
         const authorEmail = opts.authorEmail || await getGitConfig('user.email', repoDir) || 'author@example.com'
@@ -89,17 +91,13 @@ program
         await run({}, async ({ apis }) => {
             const oi = apis[spine.capsuleSourceLineRef].oi
 
-            console.log(chalk.blue('Creating identity...'))
-            const author = await oi.createIdentity({
-                privateKeyPath: inceptionKeyPath,
-                authorName,
-                authorEmail,
-            })
-
             console.log(chalk.blue('Creating repository...'))
             const result = await oi.createRepository({
                 repoDir,
-                author,
+                firstTrustKeyPath,
+                provenanceKeyPath,
+                authorName,
+                authorEmail,
             })
 
             const markId = await oi.getMarkIdentifier({ mark: result.mark })

@@ -30,7 +30,7 @@ const {
     }, {
         importMeta: import.meta,
         importStack: makeImportStack(),
-        capsuleName: 't44/caps/providers/blockchaincommons.com/xid.test'
+        capsuleName: '@stream44.studio/t44-blockchaincommons.com/caps/xid.test'
     })
     return { spine }
 }, async ({ spine, apis }: any) => {

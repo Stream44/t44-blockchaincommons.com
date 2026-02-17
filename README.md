@@ -33,13 +33,35 @@ Combines the `xid` and `provenance-mark` capsules to provide a verifiable ledger
 
 Compatible with `provenance-mark-cli` storage format.
 
-### `GordianOpenIntegrity` (Gordian Open Integrity Project)
+### `GitRepositoryIdentifier` (Git Repository Identifier)
 
-A utility to record decisions **about** a git repository, **in** the git repository, in a cryptographically rigerous way leveraging XID Documents.
+A utility to establish an **identifier** for a `git` repository in the form of a `did:repo:<hash>` id.
+
+**Documentation:** See the [Stream44 Studio Workshop](https://github.com/Stream44/Workshop) for complete pattern and tool documentation:
+- **Pattern**: [WP-2026-01 — Git Repository Identifier](https://github.com/Stream44/Workshop/blob/main/Patterns/WP-2026-01-GitRepository-Identifier.md)
+- **Tool**: [WT-2026-01 — Git Repository Identifier](https://github.com/Stream44/Workshop/blob/main/Tools/WT-2026-01-GitRepositoryIdentifier.md)
+
+
+### `GitRepositoryIntegrity` (Git Repository Integrity)
+
+A utility to validate the integrity of a `git` repository across four progressive layers: commit origin, repository identifier, Gordian Open Integrity provenance, and XID document governance.
+
+**Documentation:** See the [Stream44 Studio Workshop](https://github.com/Stream44/Workshop) for complete pattern and tool documentation:
+- **Pattern**: [WP-2026-02 — Git Repository Integrity](https://github.com/Stream44/Workshop/blob/main/Patterns/WP-2026-02-GitRepository-Integrity.md)
+- **Tool**: [WT-2026-02 — Git Repository Integrity](https://github.com/Stream44/Workshop/blob/main/Tools/WT-2026-02-GitRepositoryIntegrity.md)
+
+
+### `GordianOpenIntegrity` (Gordian Open Integrity)
+
+A utility to record decisions **about** a git repository, **in** the git repository, in a cryptographically rigerous way leveraging XID Documents. The logical space is initialized by creating a **trust root** XID Document tied to the `GitRepositoryIdentifier` ensuring that author details including signing key match.
+
+**Documentation:** See the [Stream44 Studio Workshop](https://github.com/Stream44/Workshop) for complete pattern and tool documentation:
+- **Pattern**: [WP-2026-03 — Gordian Open Integrity](https://github.com/Stream44/Workshop/blob/main/Patterns/WP-2026-03-GitRepository-GordianOpenIntegrity.md)
+- **Tool**: [WT-2026-03 — Gordian Open Integrity](https://github.com/Stream44/Workshop/blob/main/Tools/WT-2026-03-GordianOpenIntegrity.md)
 
 ```
-# Initialize a git repository
-bunx @stream44.studio/t44-blockchaincommons.com init [GordianOpenIntegrity] --inception-key ~/.ssh/key
+# Initialize a trust root for a git repository (ed25519 keys required)
+bunx @stream44.studio/t44-blockchaincommons.com init [GordianOpenIntegrity] --first-trust-key ~/.ssh/trust_root_key --provenance-key ~/.ssh/provenance_key
 
 # Validate a git repository
 bunx @stream44.studio/t44-blockchaincommons.com validate [GordianOpenIntegrity]
@@ -62,76 +84,65 @@ jobs:
       - uses: Stream44/t44-blockchaincommons.com@main
 ```
 
-The [Open Integrity Project](https://github.com/OpenIntegrityProject) is focused on `git` and its ecosystem and is proposing a `.repo/` directory to store decisions (signed config files). More details here: https://github.com/OpenIntegrityProject/core/blob/main/docs/Open_Integrity_Repo_Directory_Structure.md
+The trust root commit is tied to a XID Document stored in git at `.o/GordianOpenIntegrity.yaml` with the provenance mark generator file kept at `.git/o/GordianOpenIntegrity-generator.yaml`. From there, the Gordian Envelope system is used to **introduce** new decision assets that may be stored at `.o/<domain.tld>/my/path/doc.yaml` and `.git/o/<domain.tld>/my/path/doc-generator.yaml`. Implementers can design their own URI layouts and **Gordian Envelope Spaces**.
 
-The `GordianOpenIntegrity` capsule takes a different *alternative and parallel* approach in that it provides an **open namespace to record all kinds of decisions for all kinds of purposes**.
-
-The inception commit is tied to a XID Document stored in git at `.o/GordianOpenIntegrity.yaml` with the provenance mark generator file kept at `.git/o/GordianOpenIntegrity-generator.yaml`. From there, the Gordian Envelope system is used to **introduce** new decision assets that may be stored at `.o/<domain.tld>/my/path/doc.yaml` and `.git/o/<domain.tld>/my/path/doc-generator.yaml`. Implementers can design their own URI layouts and **Gordian Envelope Spaces**.
-
-The capsule uses a `XidDocumentLedger` per document (across commits) and provides a minimal abstraction for `provenance-mark` enforced ledgers of XID Documents in git repositories tied cryptographically to the Open Integrity repository inception commit. `lifehash` is used to store the inception and current provenance mark at `.o/GordianOpenIntegrity-InceptionLifehash.svg` and `.o/GordianOpenIntegrity-CurrentLifehash.svg` respectively. See *[Provenance](#provenance)* footer below for the lifehash marks for this repository.
+The capsule uses a `XidDocumentLedger` per document (across commits) and provides a minimal abstraction for `provenance-mark` enforced ledgers of XID Documents in git repositories tied cryptographically to a [WP-2026-01-GitRepository-Identifier]() commit. `lifehash` is used to store the inception and current provenance mark at `.o/GordianOpenIntegrity-InceptionLifehash.svg` and `.o/GordianOpenIntegrity-CurrentLifehash.svg` respectively. See *[Provenance](#provenance)* footer below for the lifehash marks for this repository.
 
 Given the latest provenance mark via a publishing channel, users are able to verify the integrity of all decisions recorded against the repository with complete confidence. This verification includes the repository code thus allowing for distribution via public peer-to-peer networks. This is stable foundation for transparent distributed governance and the exploration of cryptographic decision making and relationship building.
 
 `.o/GordianOpenIntegrity.yaml` example from `examples/03-GordianOpenIntegrity/main.test.ts`:
 ```
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "envelope": "ur:envelope/lptpsotanshdhdcxesvdmtwlnlrfvevwayoygaberyvtjendqdtewljspsbwpmvsrpjymtrldkvwmubzoytpsojyfljljpieinhsjtgwjoihjtgajtjyihiojpinjykktpsokshnjkjkisdpihieeyececehescxfpfpfpfpfxeoglknhsfxehjzhtfygaehglghfeecfpfpfpfpgafweohtjyjkflengogdksjljyglingafphdhdhdhdieghjoeegdglgteegyimhteogojndykoehhkfyfxetgdhfcxjkiniojtinjtioheihieeyececehesoytpsoksckfljljpieinhsjtgwjoihjtgajtjyihiojpinjykkdmfyjliakpjnihjtjyjktpsoksehkgcpdmjldlihkshsjnjojzihdmiajljndljojljziniakkdlkoehdmkkhsjnjzcpftcphdgafydeieiaidehenetehiadtcpkioyaylftpsohdgltansgylftanshfhdcxolkiwytlsoehmshholmorhfgksladslfptsrwdgabkmdwlghbnbtuofrheoyosfstansgrhdcxdyhymubwbarffpotzcbajtstrfktlnpdbgrlwnoxgsctvofsledkfmckskldjzjsoycsfncsfgoycsfztpsohdjktngdgmgwhflfaxhdimdiwnmwrsemasflkitadwisswtbbemwtifgfdhtwdtlaeaavwkpongsatktvycapefhvapmlgselnqzaetnrdqdhnlpdnhlhgcertndrdrdwdtbaayalopsdiihmuontoiejomybtsthydpoemozckkmwltyannvdhtcmbbbswnfmwneoeyftmocxkszetsvdeycxkpguyaaabbfzenbtsaimwswe",
-  "mark": "a9ea4602",
-  "$defs": {
-    "envelope": {
-      "$ref": "https://datatracker.ietf.org/doc/draft-mcnally-envelope/"
-    },
-    "mark": {
-      "$ref": "https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2025-001-provenance-mark.md"
-    }
-  }
-}
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$defs:
+  envelope:
+    $ref: "https://datatracker.ietf.org/doc/draft-mcnally-envelope/"
+  mark:
+    $ref: "https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2025-001-provenance-mark.md"
+envelope: "ur:envelope/lptpsota ... lbenmhhf"
+mark: "1097246a"
 ---
-# Repository DID: did:repo:72749389d090c2e6af2b14508df28aef74efeac8
-# Current Mark: a9ea4602 (🅑 PART WAND FROG ALSO)
-# Inception Mark: eb05b660 (🅑 WARM ARCH RAMP HORN)
-# XID(39e796e9) [
-#     "GordianOpenIntegrity": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3ZtsG6UPxotNiIAXXXXdTp4PNM4QjZ3Um0v1YDC8PV signing_ed25519"
-#     "GordianOpenIntegrity.Documents": "{".o/example.com/policy/v1.yaml":"XID(dcb1681c)"}"
+# Repository DID: did:repo:47c1a6772338d3cf589fb985a51b747b3a9d09cf
+# Current Mark: 1097246a (🅑 BLUE MISS DARK ITEM)
+# Inception Mark: 03dc39ac (🅑 APEX UNDO EYES PLUS)
+# XID(9e560ab4) [
+#     "GordianOpenIntegrity.SigningKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBQfr21iYSvICyxXhXKdq/MEU0sC2mMErqaMfSDans6F test_ed25519"
 #     'key': Bytes(78) [
 #         'allow': 'All'
 #     ]
 #     'provenance': Bytes(115)
+#     "GordianOpenIntegrity.RepositoryIdentifier": "did:repo:47c1a6772338d3cf589fb985a51b747b3a9d09cf"
 # ]
-# Root of trust established using https://github.com/Stream44/t44-blockchaincommons.com
+# Trust established using https://github.com/Stream44/t44-BlockchainCommons.com
 ```
 
 Commits that lead to this document:
 ```
-% git log                                                                                                                                 
-commit 233ddac0b263a68f590c984e3ad27cb6e9db300c (HEAD -> main)
-Author: Author <author@example.com>
-Date:   Fri Feb 13 13:22:02 2026 -0500
-
-    [GordianOpenIntegrity] Introduce new Gordian Envelope at: .o/example.com/policy/v1.yaml
-    
-    Signed-off-by: Author <author@example.com>
-
-commit c7757c183fc7013fc4f51f25b86e88a45c736d17
-Author: Author <author@example.com>
-Date:   Fri Feb 13 13:22:02 2026 -0500
+% git log
+commit 8e1a7fb5be0e14e2411ef97afb4e4f0cc6de1e9d (HEAD -> main)
+Author: Christoph Dorn <christoph@christophdorn.com>
+Date:   Mon Feb 16 21:53:53 2026 -0500
 
     [GordianOpenIntegrity] Establish inception Gordian Envelope at: .o/GordianOpenIntegrity.yaml
     
     Trust established using https://github.com/Stream44/t44-BlockchainCommons.com
     
-    Signed-off-by: Author <author@example.com>
+    Signed-off-by: Christoph Dorn <christoph@christophdorn.com>
 
-commit bb1408b6ccf40108866a8119d21a8f025a106078
-Author: Author <author@example.com>
-Date:   Fri Feb 13 18:22:02 2026 +0000
+commit 27702749d720f2d6fb5f90635c19771e2936cbb7
+Author: Christoph Dorn <christoph@christophdorn.com>
+Date:   Mon Feb 16 21:53:53 2026 -0500
 
-    [GordianOpenIntegrity] Establish a SHA-1 root of trust for origin and future commit verification.
+    [RepositoryIdentifier] Track 47c1a677
     
-    Signed-off-by: Author <author@example.com>
+    Signed-off-by: Christoph Dorn <christoph@christophdorn.com>
+
+commit 47c1a6772338d3cf589fb985a51b747b3a9d09cf
+Author: Christoph Dorn <christoph@christophdorn.com>
+Date:   Tue Feb 17 02:53:53 2026 +0000
+
+    [RepositoryIdentifier] Establish signed repository identifier.
     
-    Trust established using https://github.com/Stream44/t44-BlockchainCommons.com
+    Signed-off-by: Christoph Dorn <christoph@christophdorn.com>
 ```
 
 
@@ -141,6 +152,18 @@ Capsules: Low Level
 These capsules wrap Blockchain Commons [Gordian Stack](https://developer.blockchaincommons.com/) [javascript](https://github.com/leonardocustodio/bcts/tree/main) libraries.
 
 **NOTE:** Some capsules add additional functionality!
+
+### `fs` (Filesystem Tools)
+
+A utility for common filesystem needs.
+
+### `git` (Git Tools)
+
+A utility that abstracts away the `git` CLI tool for convenient access from JavaScript.
+
+### `key` (ed25519 Cryptographic Key Tools)
+
+A utility to work with `ed25519` keys.
 
 ### `xid` (XID: Extensible Identifiers)
 

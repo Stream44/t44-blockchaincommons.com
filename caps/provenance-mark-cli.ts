@@ -171,4 +171,4 @@ export async function capsule({
         capsuleName: capsule['#'],
     })
 }
-capsule['#'] = 't44/caps/providers/blockchaincommons.com/provenance-mark-cli'
+capsule['#'] = '@stream44.studio/t44-blockchaincommons.com/caps/provenance-mark-cli'

@@ -1,17 +1,15 @@
 #!/usr/bin/env bun test
 
+import crypto from 'crypto'
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir } from 'fs/promises'
-
-const WORK_DIR = join(import.meta.dir, '.~xid-ledger')
 
 const {
-    test: { describe, it, expect },
+    test: { describe, it, expect, workbenchDir },
     xid,
     ledger: revisionLedger,
     cli,
+    fs,
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -39,6 +37,10 @@ const {
                     type: CapsulePropertyTypes.Mapping,
                     value: './provenance-mark-cli'
                 },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './fs'
+                },
             }
         }
     }, {
@@ -53,8 +55,6 @@ const {
     importMeta: import.meta
 })
 
-const fs = await import('fs')
-const path = await import('path')
 
 const {
     PrivateKeyBase,
@@ -62,10 +62,6 @@ const {
     XIDPrivateKeyOptions,
     XIDGeneratorOptions,
 } = await xid.types()
-
-// Clean up before tests
-await rm(WORK_DIR, { recursive: true, force: true })
-await mkdir(WORK_DIR, { recursive: true })
 
 describe('XID Ledger', function () {
 
@@ -469,7 +465,7 @@ describe('XID Ledger', function () {
 
         let storedLedger: any
         let storedDoc: any
-        const storeDir = path.join(WORK_DIR, 'stored-ledger')
+        const storeDir = `${workbenchDir}/stored-ledger`
 
         it('should create a ledger with storeDir and write genesis files', async function () {
             storedDoc = await xid.createDocument({
@@ -487,19 +483,19 @@ describe('XID Ledger', function () {
                 storeDir,
             })
 
-            expect(fs.existsSync(storeDir)).toBe(true)
-            expect(fs.existsSync(path.join(storeDir, 'generator.json'))).toBe(true)
-            expect(fs.existsSync(path.join(storeDir, 'marks'))).toBe(true)
-            expect(fs.existsSync(path.join(storeDir, 'marks', 'mark-0.json'))).toBe(true)
+            expect(await fs.exists({ path: storeDir })).toBe(true)
+            expect(await fs.exists({ path: `${storeDir}/generator.json` })).toBe(true)
+            expect(await fs.exists({ path: `${storeDir}/marks` })).toBe(true)
+            expect(await fs.exists({ path: `${storeDir}/marks/mark-0.json` })).toBe(true)
         })
 
         it('should write valid generator.json', async function () {
-            const generatorJson = JSON.parse(fs.readFileSync(path.join(storeDir, 'generator.json'), 'utf-8'))
+            const generatorJson = JSON.parse(await fs.readFile({ path: `${storeDir}/generator.json`, encoding: 'utf-8' }))
             expect(generatorJson).toBeDefined()
         })
 
         it('should write valid mark-0.json with comment', async function () {
-            const markJson = JSON.parse(fs.readFileSync(path.join(storeDir, 'marks', 'mark-0.json'), 'utf-8'))
+            const markJson = JSON.parse(await fs.readFile({ path: `${storeDir}/marks/mark-0.json`, encoding: 'utf-8' }))
             expect(markJson).toBeDefined()
             expect(markJson.comment).toBe('genesis')
         })
@@ -518,14 +514,15 @@ describe('XID Ledger', function () {
                 date: new Date(Date.UTC(2025, 0, 2)),
             })
 
-            expect(fs.existsSync(path.join(storeDir, 'marks', 'mark-1.json'))).toBe(true)
+            expect(await fs.exists({ path: `${storeDir}/marks/mark-1.json` })).toBe(true)
 
-            const markJson = JSON.parse(fs.readFileSync(path.join(storeDir, 'marks', 'mark-1.json'), 'utf-8'))
+            const markJson = JSON.parse(await fs.readFile({ path: `${storeDir}/marks/mark-1.json`, encoding: 'utf-8' }))
+            expect(markJson).toBeDefined()
             expect(markJson.comment).toBe('add-key')
         })
 
         it('should update generator.json on commit', async function () {
-            const generatorJson = JSON.parse(fs.readFileSync(path.join(storeDir, 'generator.json'), 'utf-8'))
+            const generatorJson = JSON.parse(await fs.readFile({ path: `${storeDir}/generator.json`, encoding: 'utf-8' }))
             expect(generatorJson).toBeDefined()
         })
 
@@ -543,11 +540,99 @@ describe('XID Ledger', function () {
                 date: new Date(Date.UTC(2025, 0, 3)),
             })
 
-            expect(fs.existsSync(path.join(storeDir, 'marks', 'mark-2.json'))).toBe(true)
+            expect(await fs.exists({ path: `${storeDir}/marks/mark-2.json` })).toBe(true)
         })
 
         it('should verify the stored ledger', async function () {
             const result = await revisionLedger.verify({ ledger: storedLedger })
+            expect(result.valid).toBe(true)
+        })
+    })
+
+    // ──────────────────────────────────────────────────────────────────
+    // 10b. Encrypted file storage
+    // ──────────────────────────────────────────────────────────────────
+
+    describe('10b. Encrypted file storage', function () {
+
+        let encLedger: any
+        let encDoc: any
+        const encStoreDir = `${workbenchDir}/encrypted-ledger`
+        const encKeysDir = `${workbenchDir}/encrypted-ledger-keys`
+        let provenanceKey: Uint8Array
+
+        it('should generate an Ed25519 provenance key', async function () {
+            await fs.mkdir({ path: encKeysDir, recursive: true })
+            const keyPath = `${encKeysDir}/provenance_ed25519`
+            const { execSync } = await import('child_process')
+            execSync(`ssh-keygen -t ed25519 -f ${keyPath} -N "" -C provenance_key`, { stdio: 'pipe' })
+            // Derive a 32-byte encryption key from the private key file
+            const keyData = await fs.readFileBuffer({ path: keyPath })
+            provenanceKey = crypto.createHash('sha256').update(keyData).digest()
+        })
+
+        it('should create a ledger with encrypted generator using provenance key', async function () {
+            encDoc = await xid.createDocument({
+                keyType: 'privateKeyBase',
+                privateKeyBase: PrivateKeyBase.new(),
+                provenance: {
+                    type: 'seed',
+                    seed: provenanceKey,
+                    date: new Date(Date.UTC(2025, 0, 1)),
+                },
+            })
+
+            encLedger = await revisionLedger.createLedger({
+                document: encDoc,
+                storeDir: encStoreDir,
+                encryptionKey: provenanceKey,
+            })
+
+            expect(await fs.exists({ path: encStoreDir })).toBe(true)
+            expect(await fs.exists({ path: `${encStoreDir}/generator.json` })).toBe(true)
+        })
+
+        it('should encrypt only sensitive properties in generator.json', async function () {
+            const raw = await fs.readFile({ path: `${encStoreDir}/generator.json`, encoding: 'utf-8' })
+            const parsed = JSON.parse(raw)
+            expect(typeof parsed.res).toBe('number')
+            expect(typeof parsed.nextSeq).toBe('number')
+            expect(parsed.seed).toMatch(/^aes-256-gcm:[0-9a-f]{8}:/)
+            expect(parsed.chainID).toMatch(/^aes-256-gcm:[0-9a-f]{8}:/)
+            expect(parsed.rngState).toMatch(/^aes-256-gcm:[0-9a-f]{8}:/)
+        })
+
+        it('should still write plaintext mark files', async function () {
+            const markJson = JSON.parse(await fs.readFile({ path: `${encStoreDir}/marks/mark-0.json`, encoding: 'utf-8' }))
+            expect(markJson).toBeDefined()
+            expect(markJson.comment).toBe('genesis')
+        })
+
+        it('should commit and update encrypted generator', async function () {
+            await xid.addKey({
+                document: encDoc,
+                publicKeys: PrivateKeyBase.new().ed25519PublicKeys(),
+                allowAll: true,
+            })
+
+            encLedger = await revisionLedger.commit({
+                ledger: encLedger,
+                document: encDoc,
+                label: 'enc-add-key',
+                date: new Date(Date.UTC(2025, 0, 2)),
+            })
+
+            const raw = await fs.readFile({ path: `${encStoreDir}/generator.json`, encoding: 'utf-8' })
+            const parsed = JSON.parse(raw)
+            expect(parsed.seed).toMatch(/^aes-256-gcm:/)
+            expect(parsed.chainID).toMatch(/^aes-256-gcm:/)
+            expect(parsed.rngState).toMatch(/^aes-256-gcm:/)
+
+            expect(await fs.exists({ path: `${encStoreDir}/marks/mark-1.json` })).toBe(true)
+        })
+
+        it('should verify the encrypted ledger', async function () {
+            const result = await revisionLedger.verify({ ledger: encLedger })
             expect(result.valid).toBe(true)
         })
     })
@@ -560,7 +645,7 @@ describe('XID Ledger', function () {
 
         let crossDoc: any
         let crossLedger: any
-        const crossDir = path.join(WORK_DIR, 'cross-compat')
+        const crossDir = `${workbenchDir}/cross-compat`
 
         it('should create a ledger with storeDir (xid-ledger writes genesis)', async function () {
             crossDoc = await xid.createDocument({

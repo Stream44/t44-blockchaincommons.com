@@ -184,4 +184,4 @@ export async function capsule({
         capsuleName: capsule['#'],
     })
 }
-capsule['#'] = 't44/caps/providers/blockchaincommons.com/open-integrity-sh'
+capsule['#'] = '@stream44.studio/t44-blockchaincommons.com/caps/open-integrity-sh'

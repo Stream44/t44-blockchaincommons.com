@@ -1,4 +1,5 @@
 
+import type { ProvenanceMarkResolution } from '@bcts/provenance-mark'
 
 import {
     XIDDocument,
@@ -16,8 +17,6 @@ import {
     PublicKeys,
     PrivateKeys,
 } from '@bcts/components'
-import type { ProvenanceMarkResolution } from '@bcts/provenance-mark'
-
 
 export async function capsule({
     encapsulate,
@@ -28,7 +27,6 @@ export async function capsule({
     CapsulePropertyTypes: any
     makeImportStack: any
 }) {
-
     return encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
             '#@stream44.studio/encapsulate/structs/Capsule': {},
@@ -562,4 +560,4 @@ export async function capsule({
         capsuleName: capsule['#'],
     })
 }
-capsule['#'] = 't44/caps/providers/blockchaincommons.com/xid'
+capsule['#'] = '@stream44.studio/t44-blockchaincommons.com/caps/xid'

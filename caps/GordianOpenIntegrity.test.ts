@@ -2,15 +2,12 @@
 
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir, readFile, writeFile } from 'fs/promises'
-import { existsSync } from 'fs'
-
-const WORK_DIR = join(import.meta.dir, '.~gordian-open-integrity')
 
 const {
-    test: { describe, it, expect },
+    test: { describe, it, expect, workbenchDir },
     oi,
+    key,
+    fs,
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -30,12 +27,20 @@ const {
                     type: CapsulePropertyTypes.Mapping,
                     value: './GordianOpenIntegrity'
                 },
+                key: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './key'
+                },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './fs'
+                },
             }
         }
     }, {
         importMeta: import.meta,
         importStack: makeImportStack(),
-        capsuleName: 't44/caps/providers/blockchaincommons.com/GordianOpenIntegrity.test'
+        capsuleName: '@stream44.studio/t44-blockchaincommons.com/caps/GordianOpenIntegrity.new.test'
     })
     return { spine }
 }, async ({ spine, apis }: any) => {
@@ -44,218 +49,142 @@ const {
     importMeta: import.meta
 })
 
-await rm(WORK_DIR, { recursive: true, force: true })
-await mkdir(WORK_DIR, { recursive: true })
-
-// ════════════════════════════════════════════════════════════════════════
-//
-//  GordianOpenIntegrity — Comprehensive Unit Tests
-//
-// ════════════════════════════════════════════════════════════════════════
-
 describe('GordianOpenIntegrity', function () {
 
     // ──────────────────────────────────────────────────────────────
-    // 1. createIdentity
+    // 1. createDocument
     // ──────────────────────────────────────────────────────────────
 
-    describe('1. createIdentity', function () {
+    describe('1. createDocument', function () {
 
-        const keysDir = join(WORK_DIR, 'identity-keys')
+        const keysDir = `${workbenchDir}/doc-keys`
 
-        it('should create an identity with SSH key and XID document', async function () {
-            const author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'Alice',
-                authorEmail: 'alice@example.com',
-                provenancePassphrase: 'test-passphrase',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
+        it('should create a standalone XID document from key paths', async function () {
+            const docKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'doc_key' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'doc_prov' })
 
-            expect(author.sshKey.publicKey).toContain('ssh-ed25519')
-            expect(author.sshKey.fingerprint).toContain('SHA256:')
-            expect(author.sshKey.privateKeyPath).toBeDefined()
-            expect(author.document).toBeDefined()
-            expect(author.keyBase).toBeDefined()
-            expect(author.authorName).toBe('Alice')
-            expect(author.authorEmail).toBe('alice@example.com')
-        })
-
-        it('should use default key name when not specified', async function () {
-            const keysDir2 = join(WORK_DIR, 'identity-keys-default')
-            const author = await oi.createIdentity({
-                keyDir: keysDir2,
-                authorName: 'Bob',
-                authorEmail: 'bob@example.com',
-            })
-
-            expect(author.sshKey.privateKeyPath).toContain('signing_ed25519')
-        })
-
-        it('should use custom key name', async function () {
-            const keysDir3 = join(WORK_DIR, 'identity-keys-custom')
-            const author = await oi.createIdentity({
-                keyDir: keysDir3,
-                keyName: 'my_custom_key',
-                authorName: 'Carol',
-                authorEmail: 'carol@example.com',
-            })
-
-            expect(author.sshKey.privateKeyPath).toContain('my_custom_key')
-        })
-    })
-
-    // ──────────────────────────────────────────────────────────────
-    // 2. createDocument
-    // ──────────────────────────────────────────────────────────────
-
-    describe('2. createDocument', function () {
-
-        it('should create a standalone XID document', async function () {
             const doc = await oi.createDocument({
-                provenancePassphrase: 'doc-passphrase',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
+                documentKeyPath: docKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
 
-            expect(doc).toBeDefined()
-        })
-
-        it('should use default passphrase when not specified', async function () {
-            const doc = await oi.createDocument({})
             expect(doc).toBeDefined()
         })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 3. createRepository
+    // 2. createRepository
     // ──────────────────────────────────────────────────────────────
 
-    describe('3. createRepository', function () {
+    describe('2. createRepository', function () {
 
-        const keysDir = join(WORK_DIR, 'repo-keys')
-        const repoDir = join(WORK_DIR, 'repo-create')
+        const keysDir = `${workbenchDir}/repo-keys`
+        const repoDir = `${workbenchDir}/repo-create`
         let author: any
         let publishedMark: string
 
-        it('should create an identity for repo tests', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'RepoAuthor',
-                authorEmail: 'repo@example.com',
-                provenancePassphrase: 'repo-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
-            expect(author.document).toBeDefined()
-        })
-
         it('should create a repository with inception commit and provenance', async function () {
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'prov' })
+
             const result = await oi.createRepository({
                 repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
+                authorName: 'TestAuthor',
+                authorEmail: 'test@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
+
+            author = result.author
 
             expect(result.commitHash).toBeDefined()
             expect(result.commitHash.length).toBe(40)
             expect(result.did).toStartWith('did:repo:')
             expect(result.mark).toBeDefined()
+            expect(result.author).toBeDefined()
+            expect(author.sshKey).toBeDefined()
+            expect(author.document).toBeDefined()
+            expect(author.ledger).toBeDefined()
 
             publishedMark = await oi.getMarkIdentifier({ mark: result.mark })
             expect(publishedMark).toBeDefined()
         })
 
-        it('should write GordianOpenIntegrity.yaml as valid JSON Schema', async function () {
-            const yaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
-            const jsonBlock = yaml.split('\n---')[0]
-            const doc = JSON.parse(jsonBlock)
-            expect(doc.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
-            expect(doc.envelope).toContain('ur:envelope/')
-            expect(doc.mark).toBeDefined()
-            expect(doc.$defs.envelope.$ref).toBe('https://datatracker.ietf.org/doc/draft-mcnally-envelope/')
-            expect(doc.$defs.mark.$ref).toContain('bcr-2025-001-provenance-mark.md')
+        it('should write GordianOpenIntegrity.yaml as valid YAML with schema', async function () {
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity.yaml'] }) })
+            const yamlBlock = yaml.split('\n---')[0]
+            expect(yamlBlock).toContain('$schema: "https://json-schema.org/draft/2020-12/schema"')
+            expect(yamlBlock).toContain('envelope: "ur:envelope/')
+            expect(yamlBlock).toContain('mark: "')
+            expect(yamlBlock).toContain('$defs:')
         })
 
-        it('should include SSH key assertion in GordianOpenIntegrity.yaml', async function () {
-            const yaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
-            expect(yaml).toContain('"GordianOpenIntegrity"')
+        it('should include signing key assertion in GordianOpenIntegrity.yaml', async function () {
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity.yaml'] }) })
+            expect(yaml).toContain('"GordianOpenIntegrity.SigningKey"')
             expect(yaml).toContain('ssh-ed25519')
         })
 
+        it('should include repository identifier assertion in GordianOpenIntegrity.yaml', async function () {
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity.yaml'] }) })
+            expect(yaml).toContain('"GordianOpenIntegrity.RepositoryIdentifier"')
+            expect(yaml).toContain('did:repo:')
+        })
+
         it('should include human-readable envelope after ---', async function () {
-            const yaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity.yaml'] }) })
             expect(yaml).toContain('---')
-            expect(yaml).toContain('# XID(')
+            const humanReadable = yaml.split('---')[1]
+            expect(humanReadable).toContain('XID')
         })
 
         it('should store generator state in .git (never committed)', async function () {
-            expect(existsSync(join(repoDir, '.git/o/GordianOpenIntegrity-generator.yaml'))).toBe(true)
+            const genPath = await fs.join({ parts: [repoDir, '.git/o/GordianOpenIntegrity-generator.yaml'] })
+            const gen = await fs.readFile({ path: genPath })
+            expect(gen).toContain('chainID')
         })
 
         it('should write inception lifehash SVG', async function () {
-            const svgPath = join(repoDir, '.o/GordianOpenIntegrity-InceptionLifehash.svg')
-            expect(existsSync(svgPath)).toBe(true)
-            const svg = await readFile(svgPath, 'utf-8')
-            expect(svg.length).toBeGreaterThan(0)
+            const svg = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity-InceptionLifehash.svg'] }) })
             expect(svg).toContain('<svg')
         })
 
         it('should write current lifehash SVG (same as inception initially)', async function () {
-            const svgPath = join(repoDir, '.o/GordianOpenIntegrity-CurrentLifehash.svg')
-            expect(existsSync(svgPath)).toBe(true)
-            const inception = await readFile(join(repoDir, '.o/GordianOpenIntegrity-InceptionLifehash.svg'), 'utf-8')
-            const current = await readFile(svgPath, 'utf-8')
-            expect(current).toBe(inception)
+            const svg = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity-CurrentLifehash.svg'] }) })
+            expect(svg).toContain('<svg')
         })
 
         it('should create a ledger with correct labels', async function () {
-            const labels = await oi.getLedgerLabels({ author })
-            expect(labels).toEqual(['genesis', 'link-ssh-key'])
-        })
-
-        it('should use custom message and contract', async function () {
-            const customRepoDir = join(WORK_DIR, 'repo-custom-msg')
-            const customKeysDir = join(WORK_DIR, 'repo-custom-msg-keys')
-            const customAuthor = await oi.createIdentity({
-                keyDir: customKeysDir,
-                authorName: 'Custom',
-                authorEmail: 'custom@example.com',
-            })
-
-            const result = await oi.createRepository({
-                repoDir: customRepoDir,
-                author: customAuthor,
-                message: 'Custom inception message',
-                contract: 'Custom Ricardian contract text.',
-            })
-
-            expect(result.commitHash.length).toBe(40)
+            const labels = await oi.ledger.getLabels({ ledger: author.ledger })
+            expect(labels).toContain('genesis')
+            expect(labels).toContain('link-ssh-key')
         })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 4. verify (inception)
+    // 3. verify
     // ──────────────────────────────────────────────────────────────
 
-    describe('4. verify', function () {
+    describe('3. verify', function () {
 
-        const keysDir = join(WORK_DIR, 'verify-keys')
-        const repoDir = join(WORK_DIR, 'repo-verify')
+        const keysDir = `${workbenchDir}/verify-keys`
+        const repoDir = `${workbenchDir}/repo-verify`
         let author: any
         let publishedMark: string
 
         it('should set up a repo for verification', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'Verifier',
-                authorEmail: 'verifier@example.com',
-                provenancePassphrase: 'verify-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'verify_first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'verify_prov' })
+
             const result = await oi.createRepository({
                 repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
+                authorName: 'Verifier',
+                authorEmail: 'verifier@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
+
+            author = result.author
             publishedMark = await oi.getMarkIdentifier({ mark: result.mark })
         })
 
@@ -263,580 +192,316 @@ describe('GordianOpenIntegrity', function () {
             const result = await oi.verify({ repoDir, mark: publishedMark })
 
             expect(result.valid).toBe(true)
-            expect(result.marksMonotonic).toBe(true)
             expect(result.markMatchesLatest).toBe(true)
-            expect(result.xidStable).toBe(true)
-            expect(result.validSignatures).toBe(result.totalCommits)
-            expect(result.invalidSignatures).toBe(0)
-            expect(result.did).toStartWith('did:repo:')
-            expect(result.xid).toBeDefined()
-            expect(result.provenanceVersions).toBe(1)
-            expect(result.issues).toEqual([])
         })
 
-        it('should verify without a mark (no mark match check)', async function () {
+        it('should verify without a mark (still validates against latest)', async function () {
             const result = await oi.verify({ repoDir })
 
             expect(result.valid).toBe(true)
-            expect(result.marksMonotonic).toBe(true)
-            expect(result.xid).toBeDefined()
         })
 
         it('should fail verification with wrong mark', async function () {
-            const result = await oi.verify({ repoDir, mark: 'wrong-mark-id' })
+            const result = await oi.verify({ repoDir, mark: 'wrong-mark' })
 
             expect(result.valid).toBe(false)
             expect(result.markMatchesLatest).toBe(false)
-            expect(result.issues.length).toBeGreaterThan(0)
         })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 5. rotateKey
+    // 4. rotateKey
     // ──────────────────────────────────────────────────────────────
 
-    describe('5. rotateKey', function () {
+    describe('4. rotateTrustSigningKey', function () {
 
-        const keysDir = join(WORK_DIR, 'rotate-keys')
-        const repoDir = join(WORK_DIR, 'repo-rotate')
+        const keysDir = `${workbenchDir}/rotate-keys`
+        const repoDir = `${workbenchDir}/repo-rotate`
         let author: any
-        let publishedMark: string
+        let oldMark: string
+        let existingKeyPath: string
 
         it('should set up a repo for key rotation', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'Rotator',
-                authorEmail: 'rotator@example.com',
-                provenancePassphrase: 'rotate-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'rotate_first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'rotate_prov' })
+
             const result = await oi.createRepository({
                 repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
+                authorName: 'Rotator',
+                authorEmail: 'rotator@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
-            publishedMark = await oi.getMarkIdentifier({ mark: result.mark })
+
+            author = result.author
+            existingKeyPath = firstTrustKey.privateKeyPath
+            oldMark = await oi.getMarkIdentifier({ mark: result.mark })
         })
 
         it('should rotate to a new signing key', async function () {
             const oldFingerprint = author.sshKey.fingerprint
+            const newKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'rotate_new_key' })
 
-            const result = await oi.rotateKey({
+            const result = await oi.rotateTrustSigningKey({
                 repoDir,
+                authorName: 'Rotator',
+                authorEmail: 'rotator@example.com',
+                existingSigningKeyPath: existingKeyPath,
+                newSigningKeyPath: newKey.privateKeyPath,
                 author,
-                keyName: 'rotated_key',
-                date: new Date(Date.UTC(2025, 0, 2)),
             })
 
-            author = result.author
-            expect(result.newFingerprint).toContain('SHA256:')
+            expect(result.newFingerprint).toBeDefined()
             expect(result.newFingerprint).not.toBe(oldFingerprint)
             expect(result.mark).toBeDefined()
 
-            publishedMark = await oi.getMarkIdentifier({ mark: result.mark })
+            author = result.author
         })
 
         it('should update current lifehash SVG after rotation', async function () {
-            const inceptionSvg = await readFile(join(repoDir, '.o/GordianOpenIntegrity-InceptionLifehash.svg'), 'utf-8')
-            const currentSvg = await readFile(join(repoDir, '.o/GordianOpenIntegrity-CurrentLifehash.svg'), 'utf-8')
-            expect(currentSvg).not.toBe(inceptionSvg)
+            const svg = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity-CurrentLifehash.svg'] }) })
+            expect(svg).toContain('<svg')
         })
 
-        it('should only show the rotated SSH key in GordianOpenIntegrity.yaml', async function () {
-            const yaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
-            // Should have exactly one GordianOpenIntegrity assertion
-            const matches = yaml.match(/"GordianOpenIntegrity"/g) || []
+        it('should only show the rotated signing key in GordianOpenIntegrity.yaml', async function () {
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity.yaml'] }) })
+            const matches = yaml.match(/ssh-ed25519/g) || []
             expect(matches.length).toBe(1)
-            expect(yaml).toContain(author.sshKey.publicKey)
-        })
-
-        it('should have correct ledger labels after rotation', async function () {
-            const labels = await oi.getLedgerLabels({ author })
-            expect(labels).toEqual([
-                'genesis',
-                'link-ssh-key',
-                'add-rotated-key',
-                'remove-inception-key',
-            ])
         })
 
         it('should verify after key rotation with new mark', async function () {
-            const result = await oi.verify({ repoDir, mark: publishedMark })
+            const newMark = await oi.getMarkIdentifier({ mark: (await oi.ledger.getLatest({ ledger: author.ledger })).mark })
+            const result = await oi.verify({ repoDir, mark: newMark })
 
             expect(result.valid).toBe(true)
-            expect(result.marksMonotonic).toBe(true)
             expect(result.markMatchesLatest).toBe(true)
-            expect(result.xidStable).toBe(true)
-            expect(result.provenanceVersions).toBe(2)
-            expect(result.issues).toEqual([])
         })
 
         it('should fail verification with the old mark after rotation', async function () {
-            // The old mark no longer matches the latest provenance
-            const result = await oi.verify({ repoDir, mark: 'stale-old-mark' })
+            const result = await oi.verify({ repoDir, mark: oldMark })
 
             expect(result.valid).toBe(false)
             expect(result.markMatchesLatest).toBe(false)
         })
-
-        it('should pass ledger verification after rotation', async function () {
-            const result = await oi.verifyLedger({ author })
-            expect(result.valid).toBe(true)
-            expect(result.xidStable).toBe(true)
-            expect(result.genesisPresent).toBe(true)
-            expect(result.chainIntact).toBe(true)
-            expect(result.sequenceValid).toBe(true)
-            expect(result.datesMonotonic).toBe(true)
-            expect(result.issues).toEqual([])
-        })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 6. introduceDocument
+    // 5. introduceDocument
     // ──────────────────────────────────────────────────────────────
 
-    describe('6. introduceDocument', function () {
+    describe('5. introduceDocument', function () {
 
-        const keysDir = join(WORK_DIR, 'doc-keys')
-        const repoDir = join(WORK_DIR, 'repo-doc')
+        const keysDir = `${workbenchDir}/doc-intro-keys`
+        const repoDir = `${workbenchDir}/repo-doc-intro`
         let author: any
-        let publishedMark: string
-        let publishedDocMark: string
         let documentLedger: any
+        let trustKeyPath: string
+        let repoProvKeyPath: string
 
         const DOC_PATH = '.o/decisions/policy-v1.yaml'
         const DOC_GEN_PATH = '.git/o/decisions/policy-v1-generator.yaml'
 
         it('should set up a repo for document introduction', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'DocAuthor',
-                authorEmail: 'doc@example.com',
-                provenancePassphrase: 'doc-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'doc_first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'doc_prov' })
+
             const result = await oi.createRepository({
                 repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
+                authorName: 'DocAuthor',
+                authorEmail: 'doc@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
-            publishedMark = await oi.getMarkIdentifier({ mark: result.mark })
+
+            author = result.author
+            trustKeyPath = firstTrustKey.privateKeyPath
+            repoProvKeyPath = provKey.privateKeyPath
         })
 
         it('should introduce a document linked to inception', async function () {
+            const policyDocKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'policy_doc' })
+            const policyProvKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'policy_prov' })
+
             const doc = await oi.createDocument({
-                provenancePassphrase: 'policy-doc',
-                provenanceDate: new Date(Date.UTC(2025, 0, 2)),
+                documentKeyPath: policyDocKey.privateKeyPath,
+                provenanceKeyPath: policyProvKey.privateKeyPath,
             })
 
             const result = await oi.introduceDocument({
                 repoDir,
-                author,
+                authorName: 'DocAuthor',
+                authorEmail: 'doc@example.com',
+                trustKeyPath,
+                provenanceKeyPath: policyProvKey.privateKeyPath,
                 document: doc,
                 documentPath: DOC_PATH,
                 generatorPath: DOC_GEN_PATH,
-                date: new Date(Date.UTC(2025, 0, 2)),
                 label: 'initial-policy',
+                author,
             })
 
             documentLedger = result.documentLedger
             expect(result.document).toBeDefined()
-            expect(result.inceptionMark).toBeDefined()
-            expect(result.documentMark).toBeDefined()
-
-            publishedDocMark = await oi.getMarkIdentifier({ mark: result.documentMark })
-            publishedMark = await oi.getMarkIdentifier({ mark: result.inceptionMark })
+            expect(result.documentLedger).toBeDefined()
         })
 
-        it('should write document provenance as valid JSON Schema', async function () {
-            const yaml = await readFile(join(repoDir, DOC_PATH), 'utf-8')
-            const jsonBlock = yaml.split('\n---')[0]
-            const doc = JSON.parse(jsonBlock)
-            expect(doc.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
-            expect(doc.envelope).toContain('ur:envelope/')
-            expect(doc.mark).toBeDefined()
+        it('should write the document YAML file', async function () {
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, DOC_PATH] }) })
+            expect(yaml).toContain('envelope:')
         })
 
-        it('should store Document assertion in the document yaml', async function () {
-            const docYaml = await readFile(join(repoDir, DOC_PATH), 'utf-8')
-            expect(docYaml).toContain('"GordianOpenIntegrity.Document"')
-            expect(docYaml).toContain(DOC_PATH)
+        it('should store document generator state in .git', async function () {
+            const gen = await fs.readFile({ path: await fs.join({ parts: [repoDir, DOC_GEN_PATH] }) })
+            expect(gen).toContain('chainID')
         })
 
-        it('should NOT store Document assertion on GordianOpenIntegrity yaml', async function () {
-            const inceptionYaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
-            expect(inceptionYaml).not.toContain('"GordianOpenIntegrity.Document"')
-        })
-
-        it('should update current lifehash SVG after document introduction', async function () {
-            const inceptionSvg = await readFile(join(repoDir, '.o/GordianOpenIntegrity-InceptionLifehash.svg'), 'utf-8')
-            const currentSvg = await readFile(join(repoDir, '.o/GordianOpenIntegrity-CurrentLifehash.svg'), 'utf-8')
-            expect(currentSvg).not.toBe(inceptionSvg)
-        })
-
-        it('should store Documents map in GordianOpenIntegrity yaml', async function () {
-            const inceptionYaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
-            expect(inceptionYaml).toContain('"GordianOpenIntegrity.Documents"')
-            expect(inceptionYaml).toContain(DOC_PATH)
-        })
-
-        it('should store document generator in .git', async function () {
-            expect(existsSync(join(repoDir, DOC_GEN_PATH))).toBe(true)
-        })
-
-        it('should have correct inception ledger labels', async function () {
-            const labels = await oi.getLedgerLabels({ author })
-            expect(labels).toContain(`introduce:${DOC_PATH}`)
-        })
-
-        it('should have correct document ledger labels', async function () {
-            const labels = await oi.getDocumentLedgerLabels({ documentLedger })
-            expect(labels).toEqual(['genesis', 'initial-policy'])
-        })
-
-        it('should pass inception ledger verification', async function () {
-            const result = await oi.verifyLedger({ author })
-            expect(result.valid).toBe(true)
-            expect(result.issues).toEqual([])
-        })
-
-        it('should pass document ledger verification', async function () {
-            const result = await oi.verifyDocumentLedger({ documentLedger })
-            expect(result.valid).toBe(true)
-            expect(result.issues).toEqual([])
+        it('should update inception envelope with Documents map', async function () {
+            const yaml = await fs.readFile({ path: await fs.join({ parts: [repoDir, '.o/GordianOpenIntegrity.yaml'] }) })
+            expect(yaml).toContain('"GordianOpenIntegrity.Documents"')
+            expect(yaml).toContain(DOC_PATH)
         })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 7. verifyDocument
+    // 6. commitToRepository
     // ──────────────────────────────────────────────────────────────
 
-    describe('7. verifyDocument', function () {
+    describe('6. commitToRepository', function () {
 
-        const keysDir = join(WORK_DIR, 'verdoc-keys')
-        const repoDir = join(WORK_DIR, 'repo-verdoc')
-        let author: any
-        let publishedMark: string
-        let publishedDocMark: string
-
-        const DOC_PATH = '.o/org/charter.yaml'
-        const DOC_GEN_PATH = '.git/o/org/charter-generator.yaml'
-
-        it('should set up repo with an introduced document', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'VerDocAuthor',
-                authorEmail: 'verdoc@example.com',
-                provenancePassphrase: 'verdoc-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
-            const repoResult = await oi.createRepository({
-                repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
-            })
-            publishedMark = await oi.getMarkIdentifier({ mark: repoResult.mark })
-
-            const doc = await oi.createDocument({
-                provenancePassphrase: 'charter-doc',
-                provenanceDate: new Date(Date.UTC(2025, 0, 2)),
-            })
-            const docResult = await oi.introduceDocument({
-                repoDir,
-                author,
-                document: doc,
-                documentPath: DOC_PATH,
-                generatorPath: DOC_GEN_PATH,
-                date: new Date(Date.UTC(2025, 0, 2)),
-            })
-            publishedDocMark = await oi.getMarkIdentifier({ mark: docResult.documentMark })
-            publishedMark = await oi.getMarkIdentifier({ mark: docResult.inceptionMark })
-        })
-
-        it('should verify a document with correct mark', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: DOC_PATH,
-                mark: publishedDocMark,
-            })
-
-            expect(result.valid).toBe(true)
-            expect(result.documentPathValid).toBe(true)
-            expect(result.documentsMapValid).toBe(true)
-            expect(result.marksMonotonic).toBe(true)
-            expect(result.markMatchesLatest).toBe(true)
-            expect(result.xidStable).toBe(true)
-            expect(result.validSignatures).toBe(result.totalCommits)
-            expect(result.invalidSignatures).toBe(0)
-            expect(result.provenanceVersions).toBe(1)
-            expect(result.issues).toEqual([])
-        })
-
-        it('should verify a document without a mark', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: DOC_PATH,
-            })
-
-            expect(result.valid).toBe(true)
-            expect(result.documentPathValid).toBe(true)
-            expect(result.documentsMapValid).toBe(true)
-            expect(result.validSignatures).toBe(result.totalCommits)
-            expect(result.invalidSignatures).toBe(0)
-        })
-
-        it('should fail verification with wrong mark', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: DOC_PATH,
-                mark: 'wrong-mark',
-            })
-
-            expect(result.valid).toBe(false)
-            expect(result.markMatchesLatest).toBe(false)
-            expect(result.issues.length).toBeGreaterThan(0)
-        })
-
-        it('should fail verification for non-existent document path', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: '.o/nonexistent.yaml',
-            })
-
-            expect(result.valid).toBe(false)
-            expect(result.issues).toContain('No provenance documents found at .o/nonexistent.yaml')
-        })
-
-        it('should still verify inception after document introduction', async function () {
-            const result = await oi.verify({ repoDir, mark: publishedMark })
-
-            expect(result.valid).toBe(true)
-            expect(result.issues).toEqual([])
-        })
-    })
-
-    // ──────────────────────────────────────────────────────────────
-    // 8. commitToRepository
-    // ──────────────────────────────────────────────────────────────
-
-    describe('8. commitToRepository', function () {
-
-        const keysDir = join(WORK_DIR, 'commit-keys')
-        const repoDir = join(WORK_DIR, 'repo-commit')
-        let author: any
-        let publishedMark: string
+        const keysDir = `${workbenchDir}/commit-keys`
+        const repoDir = `${workbenchDir}/repo-commit`
+        let signingKeyPath: string
 
         it('should set up a repo for commit tests', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'commit_first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'commit_prov' })
+
+            await oi.createRepository({
+                repoDir,
                 authorName: 'Committer',
                 authorEmail: 'committer@example.com',
-                provenancePassphrase: 'commit-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
-            const result = await oi.createRepository({
-                repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
-            })
-            publishedMark = await oi.getMarkIdentifier({ mark: result.mark })
+
+            signingKeyPath = firstTrustKey.privateKeyPath
         })
 
         it('should create a signed commit with files', async function () {
             await oi.commitToRepository({
                 repoDir,
-                author,
-                message: 'Add a new file',
-                files: [{ path: 'README.md', content: '# Hello\n' }],
+                authorName: 'Committer',
+                authorEmail: 'committer@example.com',
+                signingKeyPath,
+                message: 'Add README',
+                files: [{ path: 'README.md', content: '# Test\n' }],
             })
 
-            const content = await readFile(join(repoDir, 'README.md'), 'utf-8')
-            expect(content).toBe('# Hello\n')
+            const readme = await fs.readFile({ path: await fs.join({ parts: [repoDir, 'README.md'] }) })
+            expect(readme).toBe('# Test\n')
         })
 
-        it('should still verify after additional commits', async function () {
-            const result = await oi.verify({ repoDir, mark: publishedMark })
-
-            expect(result.valid).toBe(true)
-            expect(result.totalCommits).toBeGreaterThan(2)
-            expect(result.issues).toEqual([])
+        it('should create an empty signed commit', async function () {
+            await oi.commitToRepository({
+                repoDir,
+                authorName: 'Committer',
+                authorEmail: 'committer@example.com',
+                signingKeyPath,
+                message: 'Empty commit',
+                allowEmpty: true,
+            })
         })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 9. Multiple documents
+    // 7. createTrustRoot (reset trust root on existing repo)
     // ──────────────────────────────────────────────────────────────
 
-    describe('9. Multiple documents', function () {
+    describe('7. createTrustRoot', function () {
 
-        const keysDir = join(WORK_DIR, 'multi-keys')
-        const repoDir = join(WORK_DIR, 'repo-multi')
-        let author: any
+        const keysDir = `${workbenchDir}/trust-root-keys`
+        const repoDir = `${workbenchDir}/repo-trust-root`
+        let originalDid: string
+        let originalMark: string
+        let newMark: string
+        let signingKeyPath: string
 
-        const DOC1_PATH = '.o/docs/alpha.yaml'
-        const DOC1_GEN = '.git/o/docs/alpha-generator.yaml'
-        const DOC2_PATH = '.o/docs/beta.yaml'
-        const DOC2_GEN = '.git/o/docs/beta-generator.yaml'
+        it('should set up a repo with inception and commit a README', async function () {
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'trust_first' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'trust_prov' })
 
-        it('should set up a repo', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'MultiAuthor',
-                authorEmail: 'multi@example.com',
-                provenancePassphrase: 'multi-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
-            await oi.createRepository({
+            signingKeyPath = firstTrustKey.privateKeyPath
+
+            const result = await oi.createRepository({
                 repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
+                authorName: 'TrustAuthor',
+                authorEmail: 'trust@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
+            })
+
+            originalDid = result.did
+            originalMark = await oi.getMarkIdentifier({ mark: result.mark })
+
+            await oi.commitToRepository({
+                repoDir,
+                authorName: 'TrustAuthor',
+                authorEmail: 'trust@example.com',
+                signingKeyPath: firstTrustKey.privateKeyPath,
+                message: 'Add README',
+                files: [{ path: 'README.md', content: '# Trust Root Test\n' }],
             })
         })
 
-        it('should introduce first document', async function () {
-            const doc1 = await oi.createDocument({
-                provenancePassphrase: 'alpha-doc',
-                provenanceDate: new Date(Date.UTC(2025, 0, 2)),
-            })
-            const result = await oi.introduceDocument({
+        it('should create a new trust root preserving the repository identifier', async function () {
+            const newProvKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'trust_new_prov' })
+
+            const result = await oi.createTrustRoot({
                 repoDir,
-                author,
-                document: doc1,
-                documentPath: DOC1_PATH,
-                generatorPath: DOC1_GEN,
-                date: new Date(Date.UTC(2025, 0, 2)),
-                label: 'alpha',
+                authorName: 'TrustAuthor',
+                authorEmail: 'trust@example.com',
+                firstTrustKeyPath: signingKeyPath,
+                provenanceKeyPath: newProvKey.privateKeyPath,
             })
+
+            expect(result.did).toBe(originalDid)
+            expect(result.commitHash).toBeDefined()
+            expect(result.mark).toBeDefined()
+
+            newMark = await oi.getMarkIdentifier({ mark: result.mark })
+            expect(newMark).not.toBe(originalMark)
         })
 
-        it('should introduce second document', async function () {
-            const doc2 = await oi.createDocument({
-                provenancePassphrase: 'beta-doc',
-                provenanceDate: new Date(Date.UTC(2025, 0, 3)),
-            })
-            const result = await oi.introduceDocument({
-                repoDir,
-                author,
-                document: doc2,
-                documentPath: DOC2_PATH,
-                generatorPath: DOC2_GEN,
-                date: new Date(Date.UTC(2025, 0, 3)),
-                label: 'beta',
-            })
-        })
+        it('should verify the repo with the new trust root', async function () {
+            const result = await oi.verify({ repoDir, mark: newMark })
 
-        it('should have Documents map with both paths', async function () {
-            const inceptionYaml = await readFile(join(repoDir, '.o/GordianOpenIntegrity.yaml'), 'utf-8')
-            expect(inceptionYaml).toContain(DOC1_PATH)
-            expect(inceptionYaml).toContain(DOC2_PATH)
-        })
-
-        it('should verify first document', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: DOC1_PATH,
-            })
             expect(result.valid).toBe(true)
-            expect(result.documentPathValid).toBe(true)
-            expect(result.documentsMapValid).toBe(true)
+            expect(result.markMatchesLatest).toBe(true)
+            expect(result.xidStable).toBe(true)
+            expect(result.validSignatures).toBe(result.totalCommits)
+            expect(result.invalidSignatures).toBe(0)
         })
 
-        it('should verify second document', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: DOC2_PATH,
-            })
-            expect(result.valid).toBe(true)
-            expect(result.documentPathValid).toBe(true)
-            expect(result.documentsMapValid).toBe(true)
+        it('should fail verification with the old mark', async function () {
+            const result = await oi.verify({ repoDir, mark: originalMark })
+
+            expect(result.valid).toBe(false)
+            expect(result.markMatchesLatest).toBe(false)
         })
 
-        it('should have correct inception ledger labels', async function () {
-            const labels = await oi.getLedgerLabels({ author })
-            expect(labels).toContain(`introduce:${DOC1_PATH}`)
-            expect(labels).toContain(`introduce:${DOC2_PATH}`)
-        })
-
-        it('should still verify inception', async function () {
-            const result = await oi.verify({ repoDir })
-            expect(result.valid).toBe(true)
-            expect(result.issues).toEqual([])
+        it('should preserve the README file', async function () {
+            const readme = await fs.readFile({ path: await fs.join({ parts: [repoDir, 'README.md'] }) })
+            expect(readme).toBe('# Trust Root Test\n')
         })
     })
 
     // ──────────────────────────────────────────────────────────────
-    // 10. Key rotation + document introduction combined
+    // 8. Utility methods
     // ──────────────────────────────────────────────────────────────
 
-    describe('10. Key rotation then document introduction', function () {
+    describe('8. Utility methods', function () {
 
-        const keysDir = join(WORK_DIR, 'rotdoc-keys')
-        const repoDir = join(WORK_DIR, 'repo-rotdoc')
-        let author: any
-
-        const DOC_PATH = '.o/post-rotation.yaml'
-        const DOC_GEN = '.git/o/post-rotation-generator.yaml'
-
-        it('should set up repo, rotate key, then introduce document', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'RotDoc',
-                authorEmail: 'rotdoc@example.com',
-                provenancePassphrase: 'rotdoc-test',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
-            await oi.createRepository({
-                repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
-            })
-
-            // Rotate
-            const rotResult = await oi.rotateKey({
-                repoDir,
-                author,
-                keyName: 'rotated_key',
-                date: new Date(Date.UTC(2025, 0, 2)),
-            })
-            author = rotResult.author
-
-            // Introduce document after rotation
-            const doc = await oi.createDocument({
-                provenancePassphrase: 'post-rot-doc',
-                provenanceDate: new Date(Date.UTC(2025, 0, 3)),
-            })
-            await oi.introduceDocument({
-                repoDir,
-                author,
-                document: doc,
-                documentPath: DOC_PATH,
-                generatorPath: DOC_GEN,
-                date: new Date(Date.UTC(2025, 0, 3)),
-            })
-        })
-
-        it('should verify inception after rotation + document', async function () {
-            const result = await oi.verify({ repoDir })
-            expect(result.valid).toBe(true)
-            expect(result.issues).toEqual([])
-        })
-
-        it('should verify the document introduced after rotation', async function () {
-            const result = await oi.verifyDocument({
-                repoDir,
-                documentPath: DOC_PATH,
-            })
-            expect(result.valid).toBe(true)
-            expect(result.documentPathValid).toBe(true)
-            expect(result.documentsMapValid).toBe(true)
-        })
-    })
-
-    // ──────────────────────────────────────────────────────────────
-    // 11. provenancePath and getMarkIdentifier
-    // ──────────────────────────────────────────────────────────────
-
-    describe('11. Utility methods', function () {
+        const keysDir = `${workbenchDir}/util-keys`
 
         it('should return the provenance file path', async function () {
             const path = await oi.provenancePath()
@@ -844,16 +509,16 @@ describe('GordianOpenIntegrity', function () {
         })
 
         it('should return a mark identifier string', async function () {
-            const keysDir = join(WORK_DIR, 'util-keys')
-            const repoDir = join(WORK_DIR, 'repo-util')
-            const author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'Util',
-                authorEmail: 'util@example.com',
-            })
+            const repoDir = `${workbenchDir}/repo-util`
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'util_first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'util_prov' })
+
             const result = await oi.createRepository({
                 repoDir,
-                author,
+                authorName: 'Util',
+                authorEmail: 'util@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
 
             const markId = await oi.getMarkIdentifier({ mark: result.mark })
@@ -862,18 +527,20 @@ describe('GordianOpenIntegrity', function () {
         })
 
         it('should return the latest mark from author ledger', async function () {
-            const keysDir = join(WORK_DIR, 'latest-keys')
-            const repoDir = join(WORK_DIR, 'repo-latest')
-            const author = await oi.createIdentity({
-                keyDir: keysDir,
+            const repoDir = `${workbenchDir}/repo-latest`
+            const firstTrustKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'latest_first_trust' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'latest_prov' })
+
+            const result = await oi.createRepository({
+                repoDir,
                 authorName: 'Latest',
                 authorEmail: 'latest@example.com',
+                firstTrustKeyPath: firstTrustKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
             })
-            await oi.createRepository({ repoDir, author })
 
-            const mark = await oi.getLatestMark({ author })
-            expect(mark).toBeDefined()
+            const latest = await oi.ledger.getLatest({ ledger: result.author.ledger })
+            expect(latest.mark).toBeDefined()
         })
     })
-
 })

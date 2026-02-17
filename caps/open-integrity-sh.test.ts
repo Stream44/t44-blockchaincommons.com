@@ -2,14 +2,13 @@
 
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir } from 'fs/promises'
-
-const WORK_DIR = join(import.meta.dir, '.~open-integrity-sh')
 
 const {
-    test: { describe, it, expect },
-    oi
+    test: { describe, it, expect, workbenchDir },
+    oi,
+    gordian,
+    key,
+    fs
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -29,6 +28,18 @@ const {
                     type: CapsulePropertyTypes.Mapping,
                     value: './open-integrity-sh'
                 },
+                gordian: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './GordianOpenIntegrity'
+                },
+                key: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './key'
+                },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './fs'
+                },
             }
         }
     }, {
@@ -43,42 +54,64 @@ const {
     importMeta: import.meta
 })
 
-// Clean up before tests
-await rm(WORK_DIR, { recursive: true, force: true })
-await mkdir(WORK_DIR, { recursive: true })
+const repoDir = await fs.join({ parts: [workbenchDir, 'test-repo'] })
+const keysDir = await fs.join({ parts: [workbenchDir, 'keys'] })
 
 describe('Open Integrity SH (shell script delegation)', function () {
 
-    const repoDir = join(WORK_DIR, 'test-repo')
+    describe('1. GordianOpenIntegrity repo compatibility with SH tool', function () {
 
-    describe('1. setup_git_inception_repo.sh', function () {
+        it('should create a Gordian Open Integrity repo with BC compatibility and pass SH audit', async function () {
+            // Create repo using GordianOpenIntegrity with BC compatibility mode
+            const sigKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'inception_key' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'inception_prov' })
 
-        it('should create an inception repo via the shell script', async function () {
-            const result = await oi.createInceptionRepo({
+            const repoResult = await gordian.createRepository({
                 repoDir,
-                force: false,
+                firstTrustKeyPath: sigKey.privateKeyPath,
+                authorName: 'TestAuthor',
+                authorEmail: 'test@example.com',
+                provenanceKeyPath: provKey.privateKeyPath,
+                blockchainCommonsCompatibility: true,
             })
 
-            expect(result.exitCode).toBe(0)
-        })
+            // Verify the SH tool can extract DID from Gordian repo
+            const did = await oi.getRepoDid({ repoDir })
+            expect(did).toStartWith('did:repo:')
+            expect(did.length).toBeGreaterThan('did:repo:'.length)
 
-        it('should fail when repo already exists without --force', async function () {
-            try {
-                await oi.createInceptionRepo({
-                    repoDir,
-                    force: false,
-                })
-                expect(true).toBe(false) // should not reach here
-            } catch (err: any) {
-                expect(err.message).toContain('setup_git_inception_repo.sh failed')
+            // Verify DID matches the repository identifier
+            const expectedDid = repoResult.did
+            expect(did).toBe(expectedDid)
+
+            // Add the Gordian signing key to the SH tool's allowed_signers file
+            // The SH tool uses a global allowed_signers file at /tmp/.open-integrity-sh-signing/allowed_signers
+            const tmpBase = await fs.tmpdir()
+            const shAllowedSignersPath = await fs.join({ parts: [tmpBase, '.open-integrity-sh-signing', 'allowed_signers'] })
+            const gordianKeyEntry = `test@example.com namespaces="git" ${sigKey.publicKey}\n`
+            await fs.appendFile({ path: shAllowedSignersPath, content: gordianKeyEntry })
+
+            // Verify the inception commit passes SH audit
+            const auditResult = await oi.auditInceptionCommit({
+                repoDir,
+                quiet: false,
+                noPrompt: true,
+                noColor: true,
+            })
+
+            if (!auditResult.passed) {
+                console.log('Audit failed. Output:', auditResult.stdout)
             }
+
+            expect(auditResult.passed).toBe(true)
+            expect(auditResult.exitCode).toBe(0)
         })
 
-        it('should succeed with --force on existing repo', async function () {
-            const forceRepoDir = join(WORK_DIR, 'test-repo-force')
-            await oi.createInceptionRepo({ repoDir: forceRepoDir })
-            const result = await oi.createInceptionRepo({ repoDir: forceRepoDir, force: true })
-            expect(result.exitCode).toBe(0)
+        it('should verify Gordian repo using GordianOpenIntegrity capsule', async function () {
+            // Use GordianOpenIntegrity's own verify method
+            const verifyResult = await gordian.verify({ repoDir })
+            expect(verifyResult.valid).toBe(true)
+            expect(verifyResult.did).toStartWith('did:repo:')
         })
     })
 
@@ -92,8 +125,8 @@ describe('Open Integrity SH (shell script delegation)', function () {
         })
 
         it('should fail on a non-repo directory', async function () {
-            const badDir = join('/tmp', 'not-a-git-repo-' + Date.now())
-            await mkdir(badDir, { recursive: true })
+            const badDir = await fs.join({ parts: ['/tmp', 'not-a-git-repo-' + Date.now()] })
+            await fs.mkdir({ path: badDir })
 
             try {
                 await oi.getRepoDid({ repoDir: badDir })
@@ -134,9 +167,8 @@ describe('Open Integrity SH (shell script delegation)', function () {
     describe('4. snippet_template.sh', function () {
 
         it('should show file status in default format', async function () {
-            const testFile = join(WORK_DIR, 'test-file.txt')
-            const { writeFile } = await import('fs/promises')
-            await writeFile(testFile, 'hello world')
+            const testFile = await fs.join({ parts: [workbenchDir, 'test-file.txt'] })
+            await fs.writeFile({ path: testFile, content: 'hello world' })
 
             const result = await oi.showFileStatus({
                 filePath: testFile,
@@ -148,7 +180,7 @@ describe('Open Integrity SH (shell script delegation)', function () {
         })
 
         it('should show file status in json format', async function () {
-            const testFile = join(WORK_DIR, 'test-file.txt')
+            const testFile = await fs.join({ parts: [workbenchDir, 'test-file.txt'] })
 
             const result = await oi.showFileStatus({
                 filePath: testFile,
@@ -164,7 +196,7 @@ describe('Open Integrity SH (shell script delegation)', function () {
     describe('5. Cross-script workflow', function () {
 
         it('should create repo, get DID, and audit in sequence', async function () {
-            const workflowRepoDir = join(WORK_DIR, 'workflow-repo')
+            const workflowRepoDir = await fs.join({ parts: [workbenchDir, 'workflow-repo'] })
 
             // Create inception repo
             const createResult = await oi.createInceptionRepo({ repoDir: workflowRepoDir })

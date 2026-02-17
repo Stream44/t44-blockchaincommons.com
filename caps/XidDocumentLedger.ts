@@ -1,9 +1,5 @@
 
 
-import * as fs from 'fs'
-import * as path from 'path'
-
-
 interface Revision {
     seq: number
     label: string
@@ -18,24 +14,12 @@ interface Ledger {
     storeDir?: string
     documentPath?: string
     generatorPath?: string
+    encryptionKey?: Uint8Array
     assertions?: Array<{ predicate: string; object: string }>
     contract?: string
     inceptionMarkId?: string
     inceptionMarkHex?: string
     repositoryDid?: string
-}
-
-function getLedger(ledger: Ledger): Ledger {
-    if (!ledger || !ledger.revisions) {
-        throw new Error('Invalid ledger: must be created with createLedger')
-    }
-    return ledger
-}
-
-function assertNotEmpty(ledger: Ledger): void {
-    if (ledger.revisions.length === 0) {
-        throw new Error('Ledger is empty: commit a revision first')
-    }
 }
 
 
@@ -55,6 +39,10 @@ export async function capsule({
             '#': {
 
                 // ── Mapped dependencies ──────────────────────────────
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: '@stream44.studio/t44-blockchaincommons.com/caps/fs'
+                },
                 xid: {
                     type: CapsulePropertyTypes.Mapping,
                     value: '@stream44.studio/t44-blockchaincommons.com/caps/xid'
@@ -62,6 +50,65 @@ export async function capsule({
                 provenanceMark: {
                     type: CapsulePropertyTypes.Mapping,
                     value: '@stream44.studio/t44-blockchaincommons.com/caps/provenance-mark'
+                },
+
+                // ── Internal helpers ─────────────────────────────────
+
+                _getLedger: {
+                    type: CapsulePropertyTypes.Function,
+                    value: async function (this: any, context: { ledger: Ledger }): Promise<Ledger> {
+                        if (!context.ledger || !context.ledger.revisions) {
+                            throw new Error('Invalid ledger: must be created with createLedger')
+                        }
+                        return context.ledger
+                    }
+                },
+
+                _assertNotEmpty: {
+                    type: CapsulePropertyTypes.Function,
+                    value: async function (this: any, context: { ledger: Ledger }) {
+                        if (context.ledger.revisions.length === 0) {
+                            throw new Error('Ledger is empty: commit a revision first')
+                        }
+                    }
+                },
+
+                // ── AES-256-GCM per-property encryption helpers ──────
+                // When an encryptionKey is provided, only the sensitive properties
+                // (seed, chainID, rngState) in generator files are encrypted at rest.
+                // Encrypted values are prefixed: "aes-256-gcm:<keyFingerprint>:<base64(iv||ciphertext||tag)>"
+                // Non-sensitive properties (res, nextSeq) remain in plaintext.
+
+                _writeGeneratorFile: {
+                    type: CapsulePropertyTypes.Function,
+                    value: async function (this: any, context: { filePath: string; generatorJson: any; encryptionKey?: Uint8Array }) {
+                        const output = { ...context.generatorJson }
+                        if (context.encryptionKey) {
+                            for (const field of ['seed', 'chainID', 'rngState']) {
+                                if (output[field] !== undefined) {
+                                    output[field] = await this.fs.encryptAes256Gcm({ key: context.encryptionKey, plaintext: String(output[field]) })
+                                }
+                            }
+                        }
+                        const dirPath = await this.fs.dirname({ path: context.filePath })
+                        await this.fs.mkdir({ path: dirPath })
+                        await this.fs.writeFile({ path: context.filePath, content: JSON.stringify(output, null, 2) })
+                    }
+                },
+
+                _readGeneratorFile: {
+                    type: CapsulePropertyTypes.Function,
+                    value: async function (this: any, context: { filePath: string; encryptionKey?: Uint8Array }): Promise<any> {
+                        const json = await this.fs.readJson({ path: context.filePath })
+                        if (context.encryptionKey) {
+                            for (const field of ['seed', 'chainID', 'rngState']) {
+                                if (typeof json[field] === 'string' && json[field].startsWith('aes-256-gcm:')) {
+                                    json[field] = await this.fs.decryptAes256Gcm({ key: context.encryptionKey, ciphertext: json[field] })
+                                }
+                            }
+                        }
+                        return json
+                    }
                 },
 
                 // ──────────────────────────────────────────────────
@@ -75,6 +122,7 @@ export async function capsule({
                         storeDir?: string
                         documentPath?: string
                         generatorPath?: string
+                        encryptionKey?: Uint8Array
                         assertions?: Array<{ predicate: string; object: string }>
                         contract?: string
                         repositoryDid?: string
@@ -109,6 +157,7 @@ export async function capsule({
                             storeDir: context.storeDir,
                             documentPath: context.documentPath,
                             generatorPath: context.generatorPath,
+                            encryptionKey: context.encryptionKey,
                             assertions: context.assertions,
                             contract: context.contract,
                             inceptionMarkId,
@@ -117,32 +166,31 @@ export async function capsule({
                         }
 
                         if (context.storeDir) {
-                            fs.mkdirSync(context.storeDir, { recursive: true })
-                            fs.mkdirSync(path.join(context.storeDir, 'marks'), { recursive: true })
+                            await this.fs.mkdir({ path: context.storeDir })
+                            const marksDir = await this.fs.join({ parts: [context.storeDir, 'marks'] })
+                            await this.fs.mkdir({ path: marksDir })
                             const generator = provenanceResult.generator
-                            const generatorStorePath = path.join(context.storeDir, 'generator.json')
-                            fs.writeFileSync(generatorStorePath, JSON.stringify(generator.toJSON(), null, 2))
+                            const generatorStorePath = await this.fs.join({ parts: [context.storeDir, 'generator.json'] })
+                            await this._writeGeneratorFile({ filePath: generatorStorePath, generatorJson: generator.toJSON(), encryptionKey: context.encryptionKey })
 
                             const { ProvenanceMarkInfo } = await this.provenanceMark.types()
                             const markInfo = ProvenanceMarkInfo.new(provenance, 'genesis')
-                            const markPath = path.join(context.storeDir, 'marks', `mark-${seq}.json`)
-                            fs.writeFileSync(markPath, JSON.stringify(markInfo.toJSON(), null, 2))
+                            const markPath = await this.fs.join({ parts: [context.storeDir, 'marks', `mark-${seq}.json`] })
+                            await this.fs.writeJson({ path: markPath, data: markInfo.toJSON() })
                         }
 
                         // Write generator state to generatorPath (e.g. .git/oi-generator.json)
                         if (context.generatorPath) {
-                            const generatorDir = path.dirname(context.generatorPath)
-                            fs.mkdirSync(generatorDir, { recursive: true })
                             const generator = provenanceResult.generator
-                            fs.writeFileSync(context.generatorPath, JSON.stringify(generator.toJSON(), null, 2))
+                            await this._writeGeneratorFile({ filePath: context.generatorPath, generatorJson: generator.toJSON(), encryptionKey: context.encryptionKey })
                         }
 
                         // Write provenance document YAML to documentPath
                         if (context.documentPath) {
-                            const documentDir = path.dirname(context.documentPath)
-                            fs.mkdirSync(documentDir, { recursive: true })
+                            const documentDir = await this.fs.dirname({ path: context.documentPath })
+                            await this.fs.mkdir({ path: documentDir })
                             const yaml = await this.buildProvenanceYaml({ document: doc, mark: provenance, assertions: context.assertions, contract: context.contract, inceptionMarkId, inceptionMarkHex, repositoryDid: context.repositoryDid })
-                            fs.writeFileSync(context.documentPath, yaml)
+                            await this.fs.writeFile({ path: context.documentPath, content: yaml })
                         }
 
                         return ledger
@@ -157,7 +205,7 @@ export async function capsule({
                         label: string
                         date: Date
                     }): Promise<Ledger> {
-                        const ledger = getLedger(context.ledger)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
 
                         // Verify XID hasn't changed
                         const currentXid = await this.xid.getXid({ document: context.document })
@@ -186,25 +234,25 @@ export async function capsule({
 
                         if (ledger.storeDir) {
                             const generator = provenanceResult.generator
-                            const generatorStorePath = path.join(ledger.storeDir, 'generator.json')
-                            fs.writeFileSync(generatorStorePath, JSON.stringify(generator.toJSON(), null, 2))
+                            const generatorStorePath = await this.fs.join({ parts: [ledger.storeDir, 'generator.json'] })
+                            await this._writeGeneratorFile({ filePath: generatorStorePath, generatorJson: generator.toJSON(), encryptionKey: ledger.encryptionKey })
 
                             const { ProvenanceMarkInfo } = await this.provenanceMark.types()
                             const markInfo = ProvenanceMarkInfo.new(mark, context.label)
-                            const markPath = path.join(ledger.storeDir, 'marks', `mark-${seq}.json`)
-                            fs.writeFileSync(markPath, JSON.stringify(markInfo.toJSON(), null, 2))
+                            const markPath = await this.fs.join({ parts: [ledger.storeDir, 'marks', `mark-${seq}.json`] })
+                            await this.fs.writeJson({ path: markPath, data: markInfo.toJSON() })
                         }
 
                         // Update generator state
                         if (ledger.generatorPath) {
                             const generator = provenanceResult.generator
-                            fs.writeFileSync(ledger.generatorPath, JSON.stringify(generator.toJSON(), null, 2))
+                            await this._writeGeneratorFile({ filePath: ledger.generatorPath, generatorJson: generator.toJSON(), encryptionKey: ledger.encryptionKey })
                         }
 
                         // Update provenance document YAML
                         if (ledger.documentPath) {
                             const yaml = await this.buildProvenanceYaml({ document: context.document, mark, assertions: ledger.assertions, contract: ledger.contract, inceptionMarkId: ledger.inceptionMarkId, inceptionMarkHex: ledger.inceptionMarkHex, repositoryDid: ledger.repositoryDid })
-                            fs.writeFileSync(ledger.documentPath, yaml)
+                            await this.fs.writeFile({ path: ledger.documentPath, content: yaml })
                         }
 
                         return ledger
@@ -221,8 +269,8 @@ export async function capsule({
                         ledger: Ledger
                         seq: number
                     }): Promise<Revision | undefined> {
-                        const ledger = getLedger(context.ledger)
-                        return ledger.revisions.find(r => r.seq === context.seq)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.revisions.find((r: Revision) => r.seq === context.seq)
                     }
                 },
 
@@ -232,8 +280,8 @@ export async function capsule({
                         ledger: Ledger
                         label: string
                     }): Promise<Revision | undefined> {
-                        const ledger = getLedger(context.ledger)
-                        return ledger.revisions.find(r => r.label === context.label)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.revisions.find((r: Revision) => r.label === context.label)
                     }
                 },
 
@@ -242,8 +290,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<Revision> {
-                        const ledger = getLedger(context.ledger)
-                        assertNotEmpty(ledger)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        await this._assertNotEmpty({ ledger })
                         return ledger.revisions[ledger.revisions.length - 1]
                     }
                 },
@@ -253,8 +301,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<Revision> {
-                        const ledger = getLedger(context.ledger)
-                        assertNotEmpty(ledger)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        await this._assertNotEmpty({ ledger })
                         return ledger.revisions[0]
                     }
                 },
@@ -264,7 +312,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }) {
-                        return getLedger(context.ledger).xid
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.xid
                     }
                 },
 
@@ -273,7 +322,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<number> {
-                        return getLedger(context.ledger).revisions.length
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.revisions.length
                     }
                 },
 
@@ -282,7 +332,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<Revision[]> {
-                        return getLedger(context.ledger).revisions
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.revisions
                     }
                 },
 
@@ -291,7 +342,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<string[]> {
-                        return getLedger(context.ledger).revisions.map(r => r.label)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.revisions.map((r: Revision) => r.label)
                     }
                 },
 
@@ -300,7 +352,8 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<any[]> {
-                        return getLedger(context.ledger).revisions.map(r => r.mark)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
+                        return ledger.revisions.map((r: Revision) => r.mark)
                     }
                 },
 
@@ -313,7 +366,7 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }) {
-                        const ledger = getLedger(context.ledger)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
                         const issues: string[] = []
 
                         if (ledger.revisions.length === 0) {
@@ -448,7 +501,15 @@ export async function capsule({
                         }
 
                         const lines: string[] = []
-                        lines.push(JSON.stringify(doc, null, 2))
+                        // Order: $schema, $defs, then properties
+                        lines.push(`$schema: "${doc.$schema}"`)
+                        lines.push(`$defs:`)
+                        lines.push(`  envelope:`)
+                        lines.push(`    $ref: "${doc.$defs.envelope.$ref}"`)
+                        lines.push(`  mark:`)
+                        lines.push(`    $ref: "${doc.$defs.mark.$ref}"`)
+                        lines.push(`envelope: "${urString}"`)
+                        lines.push(`mark: "${markId}"`)
                         lines.push('---')
                         if (context.repositoryDid) {
                             lines.push(`# Repository DID: ${context.repositoryDid}`)
@@ -473,28 +534,22 @@ export async function capsule({
                     value: async function (this: any, context: {
                         yaml: string
                     }): Promise<{ urString: string; mark: string }> {
-                        // Extract JSON block before the --- separator
+                        // Extract YAML block before the --- separator
                         const separatorIndex = context.yaml.indexOf('\n---')
-                        const jsonBlock = separatorIndex >= 0
+                        const yamlBlock = separatorIndex >= 0
                             ? context.yaml.slice(0, separatorIndex)
                             : context.yaml
-                        try {
-                            const doc = JSON.parse(jsonBlock)
-                            return { urString: doc.envelope || '', mark: doc.mark || '' }
-                        } catch {
-                            // Fallback: line-based parsing for legacy format
-                            const lines = context.yaml.split('\n')
-                            let urString = ''
-                            let mark = ''
-                            for (const line of lines) {
-                                if (line.startsWith('envelope:')) {
-                                    urString = line.slice('envelope:'.length).trim().replace(/^"|"$/g, '')
-                                } else if (line.startsWith('mark:')) {
-                                    mark = line.slice('mark:'.length).trim().replace(/^"|"$/g, '')
-                                }
+                        const lines = yamlBlock.split('\n')
+                        let urString = ''
+                        let mark = ''
+                        for (const line of lines) {
+                            if (line.startsWith('envelope:')) {
+                                urString = line.slice('envelope:'.length).trim().replace(/^"|"$/g, '')
+                            } else if (line.startsWith('mark:')) {
+                                mark = line.slice('mark:'.length).trim().replace(/^"|"$/g, '')
                             }
-                            return { urString, mark }
                         }
+                        return { urString, mark }
                     }
                 },
 
@@ -520,7 +575,7 @@ export async function capsule({
                     value: async function (this: any, context: {
                         ledger: Ledger
                     }): Promise<string> {
-                        const ledger = getLedger(context.ledger)
+                        const ledger = await this._getLedger({ ledger: context.ledger })
                         const lines: string[] = []
                         lines.push(`XID Ledger (${ledger.revisions.length} revision${ledger.revisions.length !== 1 ? 's' : ''})`)
                         lines.push(`XID: ${ledger.xid}`)
@@ -542,4 +597,4 @@ export async function capsule({
         capsuleName: capsule['#'],
     })
 }
-capsule['#'] = 't44/caps/providers/blockchaincommons.com/XidDocumentLedger'
+capsule['#'] = '@stream44.studio/t44-blockchaincommons.com/caps/XidDocumentLedger'

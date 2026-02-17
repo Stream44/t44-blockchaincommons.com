@@ -2,14 +2,11 @@
 
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir } from 'fs/promises'
-
-const WORK_DIR = join(import.meta.dir, '.~provenance-mark-cli')
 
 const {
-    test: { describe, it, expect },
+    test: { describe, it, expect, workbenchDir },
     cli,
+    fs,
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -29,6 +26,10 @@ const {
                     type: CapsulePropertyTypes.Mapping,
                     value: './provenance-mark-cli'
                 },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: './fs'
+                },
             }
         }
     }, {
@@ -43,13 +44,6 @@ const {
     importMeta: import.meta
 })
 
-const fs = await import('fs')
-const path = await import('path')
-
-// Clean up before tests
-await rm(WORK_DIR, { recursive: true, force: true })
-await mkdir(WORK_DIR, { recursive: true })
-
 describe('Provenance Mark CLI Capsule', function () {
 
     let chainDir: string
@@ -61,7 +55,7 @@ describe('Provenance Mark CLI Capsule', function () {
     describe('1. New chain', function () {
 
         it('should create a new provenance mark chain with default resolution', async function () {
-            chainDir = path.join(WORK_DIR, 'mychain')
+            chainDir = await fs.join({ parts: [workbenchDir, 'mychain'] })
 
             const output = await cli.newChain({
                 path: chainDir,
@@ -74,14 +68,14 @@ describe('Provenance Mark CLI Capsule', function () {
             expect(output.length).toBeGreaterThan(0)
 
             // Verify directory structure
-            expect(fs.existsSync(chainDir)).toBe(true)
-            expect(fs.existsSync(path.join(chainDir, 'generator.json'))).toBe(true)
-            expect(fs.existsSync(path.join(chainDir, 'marks'))).toBe(true)
-            expect(fs.existsSync(path.join(chainDir, 'marks', 'mark-0.json'))).toBe(true)
+            expect(await fs.exists({ path: chainDir })).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [chainDir, 'generator.json'] }) })).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [chainDir, 'marks'] }) })).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [chainDir, 'marks', 'mark-0.json'] }) })).toBe(true)
         })
 
         it('should create a chain with a specific resolution', async function () {
-            const highResDir = path.join(WORK_DIR, 'highres-chain')
+            const highResDir = await fs.join({ parts: [workbenchDir, 'highres-chain'] })
 
             const output = await cli.newChain({
                 path: highResDir,
@@ -92,7 +86,7 @@ describe('Provenance Mark CLI Capsule', function () {
             })
 
             expect(output.length).toBeGreaterThan(0)
-            expect(fs.existsSync(path.join(highResDir, 'marks', 'mark-0.json'))).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [highResDir, 'marks', 'mark-0.json'] }) })).toBe(true)
         })
 
         it('should reject creating a chain in an existing directory', async function () {
@@ -122,7 +116,7 @@ describe('Provenance Mark CLI Capsule', function () {
 
             expect(typeof output).toBe('string')
             expect(output.length).toBeGreaterThan(0)
-            expect(fs.existsSync(path.join(chainDir, 'marks', 'mark-1.json'))).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [chainDir, 'marks', 'mark-1.json'] }) })).toBe(true)
         })
 
         it('should add a third mark to the chain', async function () {
@@ -134,7 +128,7 @@ describe('Provenance Mark CLI Capsule', function () {
             })
 
             expect(output.length).toBeGreaterThan(0)
-            expect(fs.existsSync(path.join(chainDir, 'marks', 'mark-2.json'))).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [chainDir, 'marks', 'mark-2.json'] }) })).toBe(true)
         })
 
         it('should add a fourth mark to the chain', async function () {
@@ -145,7 +139,7 @@ describe('Provenance Mark CLI Capsule', function () {
                 quiet: true,
             })
 
-            expect(fs.existsSync(path.join(chainDir, 'marks', 'mark-3.json'))).toBe(true)
+            expect(await fs.exists({ path: await fs.join({ parts: [chainDir, 'marks', 'mark-3.json'] }) })).toBe(true)
         })
     })
 
@@ -156,7 +150,7 @@ describe('Provenance Mark CLI Capsule', function () {
     describe('3. Output formats', function () {
 
         it('should output in markdown format', async function () {
-            const formatDir = path.join(WORK_DIR, 'format-chain')
+            const formatDir = await fs.join({ parts: [workbenchDir, 'format-chain'] })
             await cli.newChain({
                 path: formatDir,
                 comment: 'Format test',
@@ -170,7 +164,7 @@ describe('Provenance Mark CLI Capsule', function () {
         })
 
         it('should output in UR format', async function () {
-            const urDir = path.join(WORK_DIR, 'ur-chain')
+            const urDir = await fs.join({ parts: [workbenchDir, 'ur-chain'] })
             const output = await cli.newChain({
                 path: urDir,
                 comment: 'UR test',
@@ -183,7 +177,7 @@ describe('Provenance Mark CLI Capsule', function () {
         })
 
         it('should output in JSON format', async function () {
-            const jsonDir = path.join(WORK_DIR, 'json-chain')
+            const jsonDir = await fs.join({ parts: [workbenchDir, 'json-chain'] })
             const output = await cli.newChain({
                 path: jsonDir,
                 comment: 'JSON test',
@@ -198,7 +192,7 @@ describe('Provenance Mark CLI Capsule', function () {
         })
 
         it('should output next mark in UR format', async function () {
-            const urDir = path.join(WORK_DIR, 'ur-chain')
+            const urDir = await fs.join({ parts: [workbenchDir, 'ur-chain'] })
             const output = await cli.nextMark({
                 path: urDir,
                 comment: 'UR next',
@@ -211,7 +205,7 @@ describe('Provenance Mark CLI Capsule', function () {
         })
 
         it('should output next mark in JSON format', async function () {
-            const jsonDir = path.join(WORK_DIR, 'json-chain')
+            const jsonDir = await fs.join({ parts: [workbenchDir, 'json-chain'] })
             const output = await cli.nextMark({
                 path: jsonDir,
                 comment: 'JSON next',
@@ -331,7 +325,7 @@ describe('Provenance Mark CLI Capsule', function () {
 
         for (const resolution of ['low', 'medium', 'quartile', 'high'] as const) {
             it(`should create a chain with ${resolution} resolution`, async function () {
-                const resDir = path.join(WORK_DIR, `res-${resolution}`)
+                const resDir = await fs.join({ parts: [workbenchDir, `res-${resolution}`] })
                 const output = await cli.newChain({
                     path: resDir,
                     resolution,

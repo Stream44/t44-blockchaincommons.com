@@ -2,16 +2,10 @@
 
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir, readFile, access } from 'fs/promises'
-
-const WORK_DIR = join(import.meta.dir, '.~open-integrity-cli')
-const REPO_DIR = join(WORK_DIR, 'repo')
-const KEYS_DIR = join(WORK_DIR, 'keys')
-const OI_BIN = join(import.meta.dir, '../../bin/oi')
 
 const {
-    test: { describe, it, expect },
+    test: { describe, it, expect, workbenchDir },
+    fs,
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -27,6 +21,10 @@ const {
                         }
                     }
                 },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: '@stream44.studio/t44-blockchaincommons.com/caps/fs'
+                },
             }
         }
     }, {
@@ -40,6 +38,10 @@ const {
 }, {
     importMeta: import.meta
 })
+
+const REPO_DIR = `${workbenchDir}/repo`
+const KEYS_DIR = `${workbenchDir}/keys`
+const OI_BIN = await fs.join({ parts: [import.meta.dir, '../../bin/oi'] })
 
 describe('GordianOpenIntegrity CLI', function () {
 
@@ -55,22 +57,27 @@ describe('GordianOpenIntegrity CLI', function () {
         expect(output).toContain('Gordian Open Integrity CLI')
     })
 
-    it('should init a repository with --inception-key', async function () {
+    it('should init a repository with --first-trust-key and --provenance-key', async function () {
         // Clean up and prepare directories
-        await rm(WORK_DIR, { recursive: true, force: true })
-        await mkdir(REPO_DIR, { recursive: true })
-        await mkdir(KEYS_DIR, { recursive: true })
+        await fs.mkdir({ path: REPO_DIR, recursive: true })
+        await fs.mkdir({ path: KEYS_DIR, recursive: true })
 
-        // Generate a test SSH key
-        const keyPath = join(KEYS_DIR, 'test_ed25519')
+        // Generate test SSH keys
+        const keyPath = await fs.join({ parts: [KEYS_DIR, 'test_ed25519'] })
+        const provKeyPath = await fs.join({ parts: [KEYS_DIR, 'prov_ed25519'] })
         const keygenProc = Bun.spawn(['ssh-keygen', '-t', 'ed25519', '-f', keyPath, '-N', '', '-C', 'test_ed25519'], {
             stdout: 'pipe',
             stderr: 'pipe',
         })
         await keygenProc.exited
+        const provKeygenProc = Bun.spawn(['ssh-keygen', '-t', 'ed25519', '-f', provKeyPath, '-N', '', '-C', 'prov_ed25519'], {
+            stdout: 'pipe',
+            stderr: 'pipe',
+        })
+        await provKeygenProc.exited
 
         // Run the init command
-        const proc = Bun.spawn(['bun', OI_BIN, 'init', 'GordianOpenIntegrity', '--inception-key', keyPath], {
+        const proc = Bun.spawn(['bun', OI_BIN, 'init', 'GordianOpenIntegrity', '--first-trust-key', keyPath, '--provenance-key', provKeyPath], {
             cwd: REPO_DIR,
             stdout: 'pipe',
             stderr: 'pipe',
@@ -89,9 +96,9 @@ describe('GordianOpenIntegrity CLI', function () {
         expect(output).toContain('Mark:')
 
         // Verify the repo was created with expected files
-        const provenancePath = join(REPO_DIR, '.o', 'GordianOpenIntegrity.yaml')
-        await access(provenancePath)
-        const content = await readFile(provenancePath, 'utf-8')
+        const provenancePath = await fs.join({ parts: [REPO_DIR, '.o', 'GordianOpenIntegrity.yaml'] })
+        expect(await fs.exists({ path: provenancePath })).toBe(true)
+        const content = await fs.readFile({ path: provenancePath })
         expect(content).toContain('envelope')
         expect(content).toContain('mark')
     })

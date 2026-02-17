@@ -2,14 +2,13 @@
 
 import * as bunTest from 'bun:test'
 import { run } from 't44/standalone-rt'
-import { join } from 'path'
-import { rm, mkdir } from 'fs/promises'
-
-const WORK_DIR = join(import.meta.dir, '.~open-integrity-xid')
+import { $ } from 'bun'
 
 const {
-    test: { describe, it, expect },
+    test: { describe, it, expect, workbenchDir },
     oi,
+    key,
+    fs,
 } = await run(async ({ encapsulate, CapsulePropertyTypes, makeImportStack }: any) => {
     const spine = await encapsulate({
         '#@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0': {
@@ -29,6 +28,14 @@ const {
                     type: CapsulePropertyTypes.Mapping,
                     value: '@stream44.studio/t44-blockchaincommons.com/caps/GordianOpenIntegrity'
                 },
+                key: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: '@stream44.studio/t44-blockchaincommons.com/caps/key'
+                },
+                fs: {
+                    type: CapsulePropertyTypes.Mapping,
+                    value: '@stream44.studio/t44-blockchaincommons.com/caps/fs'
+                },
             }
         }
     }, {
@@ -43,25 +50,10 @@ const {
     importMeta: import.meta
 })
 
-await rm(WORK_DIR, { recursive: true, force: true })
-await mkdir(WORK_DIR, { recursive: true })
-
-// ════════════════════════════════════════════════════════════════════════
-//
-//  Open Integrity + XID — Happy-Path Example
-//
-//  Demonstrates the simplest ideal workflow:
-//    1. Author creates identity and repository
-//    2. Verifier verifies the repository with a published mark
-//    3. Author introduces a decision document
-//    4. Verifier verifies the document
-//
-// ════════════════════════════════════════════════════════════════════════
-
 describe('Open Integrity + XID: Happy Path', function () {
 
-    const keysDir = join(WORK_DIR, 'keys')
-    const repoDir = join(WORK_DIR, 'repo')
+    const keysDir = `${workbenchDir}/keys`
+    const repoDir = `${workbenchDir}/repo`
 
     let author: any
     let publishedMark: string
@@ -74,23 +66,21 @@ describe('Open Integrity + XID: Happy Path', function () {
     // 1. AUTHOR: Create identity and repository
     // ──────────────────────────────────────────────────────────────
 
-    describe('1. Author creates identity and repository', function () {
+    describe('1. Author creates repository', function () {
 
-        it('should create an XID identity and inception repo', async function () {
-            author = await oi.createIdentity({
-                keyDir: keysDir,
-                authorName: 'Author',
-                authorEmail: 'author@example.com',
-                provenancePassphrase: 'open-integrity-xid-example',
-                provenanceDate: new Date(Date.UTC(2025, 0, 1)),
-            })
+        it('should create an inception repo with trust root', async function () {
+            const inceptionKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'inception_ed25519' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'provenance_ed25519' })
 
             const result = await oi.createRepository({
                 repoDir,
-                author,
-                date: new Date(Date.UTC(2025, 0, 1, 1)),
+                firstTrustKeyPath: inceptionKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
+                authorName: 'Author',
+                authorEmail: 'author@example.com',
             })
 
+            author = result.author
             expect(result.did).toStartWith('did:repo:')
             expect(result.mark).toBeDefined()
 
@@ -123,19 +113,24 @@ describe('Open Integrity + XID: Happy Path', function () {
     describe('3. Author introduces a decision document', function () {
 
         it('should introduce a document linked to inception', async function () {
+            const docKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'policy_key_ed25519' })
+            const docProvKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'policy_provenance_ed25519' })
             const document = await oi.createDocument({
-                provenancePassphrase: 'policy-doc-v1',
-                provenanceDate: new Date(Date.UTC(2025, 0, 2)),
+                documentKeyPath: docKey.privateKeyPath,
+                provenanceKeyPath: docProvKey.privateKeyPath,
             })
 
             const result = await oi.introduceDocument({
                 repoDir,
-                author,
+                authorName: 'Author',
+                authorEmail: 'author@example.com',
+                trustKeyPath: author.sshKey.privateKeyPath,
+                provenanceKeyPath: docProvKey.privateKeyPath,
                 document,
                 documentPath: DOC_PATH,
                 generatorPath: DOC_GEN_PATH,
-                date: new Date(Date.UTC(2025, 0, 2)),
                 label: 'initial-policy',
+                author,
             })
 
             publishedDocMark = await oi.getMarkIdentifier({ mark: result.documentMark })
@@ -170,6 +165,14 @@ describe('Open Integrity + XID: Happy Path', function () {
 
             expect(result.valid).toBe(true)
             expect(result.issues).toEqual([])
+        })
+
+        it('should pass git-level validation script', async function () {
+            const scriptPath = await fs.resolve({ path: import.meta.dir, parts: ['../../bin/validate-git.sh'] })
+            const result = await $`${scriptPath} --repo ${repoDir}`.nothrow()
+
+            expect(result.exitCode).toBe(0)
+            expect(result.stdout.toString()).toContain('Result: PASS')
         })
     })
 
