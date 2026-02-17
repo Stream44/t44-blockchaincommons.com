@@ -86,7 +86,7 @@ jobs:
 
 The trust root commit is tied to a XID Document stored in git at `.o/GordianOpenIntegrity.yaml` with the provenance mark generator file kept at `.git/o/GordianOpenIntegrity-generator.yaml`. From there, the Gordian Envelope system is used to **introduce** new decision assets that may be stored at `.o/<domain.tld>/my/path/doc.yaml` and `.git/o/<domain.tld>/my/path/doc-generator.yaml`. Implementers can design their own URI layouts and **Gordian Envelope Spaces**.
 
-The capsule uses a `XidDocumentLedger` per document (across commits) and provides a minimal abstraction for `provenance-mark` enforced ledgers of XID Documents in git repositories tied cryptographically to a [WP-2026-01-GitRepository-Identifier]() commit. `lifehash` is used to store the inception and current provenance mark at `.o/GordianOpenIntegrity-InceptionLifehash.svg` and `.o/GordianOpenIntegrity-CurrentLifehash.svg` respectively. See *[Provenance](#provenance)* footer below for the lifehash marks for this repository.
+The capsule uses a `XidDocumentLedger` per document (across commits) and provides a minimal abstraction for `provenance-mark` enforced ledgers of XID Documents in git repositories tied cryptographically to a [WP-2026-01-GitRepository-Identifier](https://github.com/Stream44/Workshop/blob/main/Patterns/WP-2026-01-GitRepository-Identifier.md) commit. `lifehash` is used to store the inception and current provenance mark at `.o/GordianOpenIntegrity-InceptionLifehash.svg` and `.o/GordianOpenIntegrity-CurrentLifehash.svg` respectively. See *[Provenance](#provenance)* footer below for the lifehash marks for this repository.
 
 Given the latest provenance mark via a publishing channel, users are able to verify the integrity of all decisions recorded against the repository with complete confidence. This verification includes the repository code thus allowing for distribution via public peer-to-peer networks. This is stable foundation for transparent distributed governance and the exploration of cryptographic decision making and relationship building.
 
@@ -149,9 +149,7 @@ Date:   Tue Feb 17 02:53:53 2026 +0000
 Capsules: Low Level
 ---
 
-These capsules wrap Blockchain Commons [Gordian Stack](https://developer.blockchaincommons.com/) [javascript](https://github.com/leonardocustodio/bcts/tree/main) libraries.
-
-**NOTE:** Some capsules add additional functionality!
+These capsules wrap Blockchain Commons [Gordian Stack](https://developer.blockchaincommons.com/) [javascript](https://github.com/leonardocustodio/bcts/tree/main) libraries with some additional functionality.
 
 ### `fs` (Filesystem Tools)
 
