@@ -157,6 +157,18 @@ program
                 }
             }
 
+            // Show per-commit signature details when there are any invalid signatures
+            if (result.invalidSignatures > 0 && result.commits) {
+                console.log()
+                console.log(chalk.yellow('Per-commit signature details:'))
+                for (const c of result.commits) {
+                    const status = c.signatureValid
+                        ? chalk.green('✓ valid')
+                        : chalk.yellow('⚠ key not in envelope')
+                    console.log(chalk.white(`  ${c.hash.slice(0, 8)} ${status} - ${c.message} (${c.authorName} <${c.authorEmail}>)`))
+                }
+            }
+
             if (!result.valid) {
                 process.exit(1)
             }

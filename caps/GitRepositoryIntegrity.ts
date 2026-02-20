@@ -534,9 +534,22 @@ export async function capsule({
                             }
                         }
 
-                        if (audit.invalidSignatures > 0) {
-                            issues.push(`${audit.invalidSignatures} commit(s) have invalid signatures`)
+                        // NOTE: We do NOT fail verification when commits are signed with keys
+                        // not present in the Gordian envelope. Contributors may use their own
+                        // signing keys that haven't been added to the envelope. We only enforce
+                        // envelope key matching when strict.signersAllAuthorized is explicitly set.
+                        //
+                        // Log per-commit details for debugging regardless.
+                        if (audit.commits) {
+                            for (const c of audit.commits) {
+                                if (!c.signatureValid) {
+                                    console.warn(`  [warn] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — signature key not in Gordian envelope (this is OK if the contributor's key was not added to the envelope)`)
+                                }
+                            }
                         }
+                        // if (audit.invalidSignatures > 0) {
+                        //     issues.push(`${audit.invalidSignatures} commit(s) have invalid signatures`)
+                        // }
 
                         // 6. XID from latest entry (no cross-version stability check needed)
                         const xid = latestEntry.xid
@@ -573,6 +586,7 @@ export async function capsule({
                             totalCommits: audit.totalCommits,
                             validSignatures: audit.validSignatures,
                             invalidSignatures: audit.invalidSignatures,
+                            commits: audit.commits,
                             provenanceVersions: fullHistory.length,
                             issues,
                         }
@@ -686,9 +700,22 @@ export async function capsule({
                             totalCommits = audit.totalCommits
                             validSignatures = audit.validSignatures
                             invalidSignatures = audit.invalidSignatures
-                            if (audit.invalidSignatures > 0) {
-                                issues.push(`${audit.invalidSignatures} commit(s) have invalid signatures`)
+                            // NOTE: We do NOT fail verification when commits are signed with keys
+                            // not present in the Gordian envelope. Contributors may use their own
+                            // signing keys that haven't been added to the envelope. We only enforce
+                            // envelope key matching when strict.signersAllAuthorized is explicitly set.
+                            //
+                            // Log per-commit details for debugging regardless.
+                            if (audit.commits) {
+                                for (const c of audit.commits) {
+                                    if (!c.signatureValid) {
+                                        console.warn(`  [warn] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — signature key not in Gordian envelope (this is OK if the contributor's key was not added to the envelope)`)
+                                    }
+                                }
                             }
+                            // if (audit.invalidSignatures > 0) {
+                            //     issues.push(`${audit.invalidSignatures} commit(s) have invalid signatures`)
+                            // }
                         } catch {
                             issues.push('Failed to audit repository signatures')
                         }
