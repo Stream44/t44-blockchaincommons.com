@@ -561,6 +561,18 @@ export async function capsule({
                     }
                 },
 
+                getTrackedFiles: {
+                    type: CapsulePropertyTypes.Function,
+                    value: async function (this: any) {
+                        return [
+                            '.repo-identifier',
+                            PROVENANCE_FILE,
+                            INCEPTION_LIFEHASH_FILE,
+                            CURRENT_LIFEHASH_FILE,
+                        ]
+                    }
+                },
+
             }
         }
     }, {

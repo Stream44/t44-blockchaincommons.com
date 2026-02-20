@@ -225,7 +225,7 @@ Repository DID: `did:repo:a80907ef674fcb921ea4db8f92b4a78a5d0807d2`
   </tr>
 </table>
 
-(c) 2026 [Christoph.diy](https://christoph.diy) • Code: `BSD-2-Clause-Patent` • Text: `CC-BY` • Created with [Stream44.Studio](https://Stream44.Studio)
+(c) 2026 [Christoph.diy](https://christoph.diy) • Code: `MIT` • Text: `CC-BY` • Created with [Stream44.Studio](https://Stream44.Studio)
 
 ### Credits & Thank You!
 
