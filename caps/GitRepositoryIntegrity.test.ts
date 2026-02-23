@@ -17,7 +17,7 @@ const {
             '#': {
                 test: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/WorkspaceTest',
+                    value: 't44/caps/ProjectTest',
                     options: {
                         '#': {
                             bunTest,
@@ -50,7 +50,7 @@ const {
     }, {
         importMeta: import.meta,
         importStack: makeImportStack(),
-        capsuleName: 't44/caps/providers/blockchaincommons.com/GitRepositoryIntegrity.test'
+        capsuleName: 't44/caps/patterns/blockchaincommons.com/GitRepositoryIntegrity.test'
     })
     return { spine }
 }, async ({ spine, apis }: any) => {

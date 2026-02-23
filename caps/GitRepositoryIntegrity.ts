@@ -534,22 +534,30 @@ export async function capsule({
                             }
                         }
 
-                        // NOTE: We do NOT fail verification when commits are signed with keys
-                        // not present in the Gordian envelope. Contributors may use their own
-                        // signing keys that haven't been added to the envelope. We only enforce
-                        // envelope key matching when strict.signersAllAuthorized is explicitly set.
-                        //
-                        // Log per-commit details for debugging regardless.
+                        // Classify invalid commits into two categories:
+                        //   1. UNSIGNED (signatureStatus === 'N') — commit has no signature at all.
+                        //      This is always an error because every commit MUST be signed.
+                        //   2. KEY NOT IN ENVELOPE — commit is signed but the key is not in the
+                        //      Gordian envelope. This is a warning only, because contributors may
+                        //      use their own signing keys that haven't been added to the envelope.
+                        //      We only enforce envelope key matching when strict.signersAllAuthorized
+                        //      is explicitly set.
+                        let unsignedCount = 0
                         if (audit.commits) {
                             for (const c of audit.commits) {
                                 if (!c.signatureValid) {
-                                    console.warn(`  [warn] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — signature key not in Gordian envelope (this is OK if the contributor's key was not added to the envelope)`)
+                                    if (c.signatureStatus === 'N') {
+                                        unsignedCount++
+                                        console.warn(`  [error] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — commit is NOT signed`)
+                                    } else {
+                                        console.warn(`  [warn] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — signature key not in Gordian envelope (this is OK if the contributor's key was not added to the envelope)`)
+                                    }
                                 }
                             }
                         }
-                        // if (audit.invalidSignatures > 0) {
-                        //     issues.push(`${audit.invalidSignatures} commit(s) have invalid signatures`)
-                        // }
+                        if (unsignedCount > 0) {
+                            issues.push(`${unsignedCount} commit(s) are unsigned — every commit must have a cryptographic signature`)
+                        }
 
                         // 6. XID from latest entry (no cross-version stability check needed)
                         const xid = latestEntry.xid
