@@ -115,6 +115,8 @@ program
     .description('Validate a Gordian Open Integrity repository in the current directory')
     .argument('[system]', `Integrity system to validate (${SUPPORTED_SYSTEMS.join(', ')})`, 'GordianOpenIntegrity')
     .option('--mark <mark>', 'Published provenance mark to verify against')
+    .option('--strict-signers-all-authorized', 'Require all commit signers to be authorized in the Gordian envelope')
+    .option('--strict-repo-identifier-is-inception-commit', 'Require the repository identifier to match the inception commit')
     .action(async (system, opts) => {
         validateSystem(system)
 
@@ -125,10 +127,15 @@ program
         await run({}, async ({ apis }) => {
             const oi = apis[spine.capsuleSourceLineRef].oi
 
+            const strict: Record<string, boolean> = {}
+            if (opts.strictSignersAllAuthorized) strict.signersAllAuthorized = true
+            if (opts.strictRepoIdentifierIsInceptionCommit) strict.repoIdentifierIsInceptionCommit = true
+
             console.log(chalk.blue('Validating repository...'))
             const result = await oi.verify({
                 repoDir,
                 mark: opts.mark,
+                strict: Object.keys(strict).length > 0 ? strict : undefined,
             })
 
             console.log()
@@ -144,6 +151,8 @@ program
             console.log(chalk.white(`  Provenance versions: ${result.provenanceVersions}`))
             console.log(chalk.white(`  Marks monotonic:    ${result.marksMonotonic ? 'yes' : 'no'}`))
             console.log(chalk.white(`  XID stable:         ${result.xidStable ? 'yes' : 'no'}`))
+            console.log(chalk.white(`  Strict signers:     ${strict.signersAllAuthorized ? 'on' : 'off'}`))
+            console.log(chalk.white(`  Strict repo id:     ${strict.repoIdentifierIsInceptionCommit ? 'on' : 'off'}`))
 
             if (opts.mark) {
                 console.log(chalk.white(`  Mark matches latest: ${result.markMatchesLatest ? 'yes' : 'no'}`))

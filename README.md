@@ -87,6 +87,9 @@ jobs:
         with:
           fetch-depth: 0
       - uses: Stream44/t44-blockchaincommons.com@main
+        with:
+          strict-signers-all-authorized: false
+          strict-repo-identifier-is-inception-commit: false
 ```
 
 The trust root commit is tied to a XID Document stored in git at `.o/GordianOpenIntegrity.yaml` with the provenance mark generator file kept at `.git/o/GordianOpenIntegrity-generator.yaml`. From there, the Gordian Envelope system is used to **introduce** new decision assets that may be stored at `.o/<domain.tld>/my/path/doc.yaml` and `.git/o/<domain.tld>/my/path/doc-generator.yaml`. Implementers can design their own URI layouts and **Gordian Envelope Spaces**.

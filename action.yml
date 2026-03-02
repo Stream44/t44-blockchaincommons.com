@@ -7,6 +7,14 @@ inputs:
     description: 'Published provenance mark to verify against'
     required: false
     default: ''
+  strict-signers-all-authorized:
+    description: 'Require all commit signers to be authorized in the Gordian envelope (default: false)'
+    required: false
+    default: 'false'
+  strict-repo-identifier-is-inception-commit:
+    description: 'Require the repository identifier to match the inception commit (default: false)'
+    required: false
+    default: 'false'
 
 branding:
   icon: 'shield'
@@ -44,4 +52,11 @@ runs:
         if [[ -n "${{ steps.read-mark.outputs.mark }}" ]]; then
           MARK_FLAG="--mark ${{ steps.read-mark.outputs.mark }}"
         fi
-        bun ${{ github.action_path }}/bin/oi validate GordianOpenIntegrity $MARK_FLAG
+        STRICT_FLAGS=""
+        if [[ "${{ inputs.strict-signers-all-authorized }}" == "true" ]]; then
+          STRICT_FLAGS="$STRICT_FLAGS --strict-signers-all-authorized"
+        fi
+        if [[ "${{ inputs.strict-repo-identifier-is-inception-commit }}" == "true" ]]; then
+          STRICT_FLAGS="$STRICT_FLAGS --strict-repo-identifier-is-inception-commit"
+        fi
+        bun ${{ github.action_path }}/bin/oi validate GordianOpenIntegrity $MARK_FLAG $STRICT_FLAGS
