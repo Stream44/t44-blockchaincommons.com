@@ -64,23 +64,23 @@ export async function capsule({
                 },
                 HomeRegistry: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/HomeRegistry'
+                    value: '@stream44.studio/t44/caps/HomeRegistry'
                 },
                 SigningKey: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/SigningKey'
+                    value: '@stream44.studio/t44/caps/SigningKey'
                 },
                 WorkspacePrompt: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/WorkspacePrompt'
+                    value: '@stream44.studio/t44/caps/WorkspacePrompt'
                 },
                 ProjectRepository: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/ProjectRepository'
+                    value: '@stream44.studio/t44/caps/ProjectRepository'
                 },
                 ProjectCatalogs: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/ProjectCatalogs'
+                    value: '@stream44.studio/t44/caps/ProjectCatalogs'
                 },
                 prepare: {
                     type: CapsulePropertyTypes.Function,
@@ -91,7 +91,7 @@ export async function capsule({
                         // rsync removes them. We restore them here so all downstream code can rely on
                         // the working tree. This also copies them back to source dirs so future rsyncs
                         // preserve them.
-                        const stageDir = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.stageDir
+                        const stageDir = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']?.stageDir
                         if (!stageDir) return
 
                         const oiEnabled = config.config?.GordianOpenIntegrity === true
@@ -140,7 +140,7 @@ export async function capsule({
                         const myMeta = ctx.metadata[capsule['#']] || {}
                         if (!myMeta.stageDir) {
                             // Fallback: get stageDir from git-scm metadata
-                            myMeta.stageDir = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.stageDir
+                            myMeta.stageDir = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']?.stageDir
                         }
                         if (!myMeta.stageDir) return
 
@@ -153,7 +153,7 @@ export async function capsule({
                         // ── Local helpers (closures over self) ──────────────
 
                         const loadKeys = async () => {
-                            const authorConfig = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.authorConfig
+                            const authorConfig = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']?.authorConfig
                             if (!authorConfig?.name || !authorConfig?.email) {
                                 throw new Error('GordianOpenIntegrity requires author.name and author.email in RepositorySettings config')
                             }
@@ -209,7 +209,7 @@ export async function capsule({
                         // ── dangerouslyResetMain with OI: create fresh OI repo ──
                         if (dangerouslyResetMain) {
                             const keys = await loadKeys()
-                            const originUri = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.originUri
+                            const originUri = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']?.originUri
 
                             // Delete existing OI registry data for the previous repo DID
                             const registryRootDir_ = await self.HomeRegistry.rootDir
@@ -265,7 +265,7 @@ export async function capsule({
                             })
 
                             // Generate files from config properties starting with '/'
-                            const gitProviderConfig = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.providerConfig
+                            const gitProviderConfig = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']?.providerConfig
                             if (gitProviderConfig?.config) {
                                 for (const [key, value] of Object.entries(gitProviderConfig.config)) {
                                     if (key.startsWith('/')) {
@@ -339,7 +339,7 @@ export async function capsule({
                         if (!repoIdentifierExists) {
                             console.log(chalk.cyan(`\nInitializing Gordian Open Integrity (first time setup) ...`))
                             const keys = await loadKeys()
-                            const originUri = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.originUri
+                            const originUri = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']?.originUri
 
                             const repoResult = await createOiRepo(keys)
                             console.log(chalk.green(`  ✓ GordianOpenIntegrity initialized`))
@@ -371,7 +371,7 @@ export async function capsule({
                         const oiEnabled = config.config?.GordianOpenIntegrity === true
                         if (!oiEnabled) return
 
-                        const gitMeta = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']
+                        const gitMeta = ctx.metadata['@stream44.studio/t44/caps/patterns/git-scm.com/ProjectPublishing']
                         if (!gitMeta?.stageDir) return
 
                         const oiYamlPath = join(gitMeta.stageDir, '.o', 'GordianOpenIntegrity.yaml')
@@ -383,7 +383,7 @@ export async function capsule({
                             if (didMatch) {
                                 await this.ProjectCatalogs.updateCatalogRepository({
                                     repoName: ctx.repoName,
-                                    providerKey: '#t44/caps/patterns/blockchaincommons.com/GordianOpenIntegrity',
+                                    providerKey: '#@stream44.studio/t44/caps/patterns/blockchaincommons.com/GordianOpenIntegrity',
                                     providerData: {
                                         did: didMatch[1].trim(),
                                         inceptionMark: inceptionMarkMatch?.[1] || undefined,

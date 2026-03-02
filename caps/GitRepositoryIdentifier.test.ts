@@ -1,7 +1,7 @@
 #!/usr/bin/env bun test
 
 import * as bunTest from 'bun:test'
-import { run } from 't44/standalone-rt'
+import { run } from '@stream44.studio/t44/standalone-rt'
 import { execSync } from 'child_process'
 
 const {
@@ -16,7 +16,7 @@ const {
             '#': {
                 test: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/ProjectTest',
+                    value: '@stream44.studio/t44/caps/ProjectTest',
                     options: {
                         '#': {
                             bunTest,
@@ -41,7 +41,7 @@ const {
     }, {
         importMeta: import.meta,
         importStack: makeImportStack(),
-        capsuleName: 't44/caps/patterns/blockchaincommons.com/GitRepositoryIdentifier.test'
+        capsuleName: '@stream44.studio/t44/caps/patterns/blockchaincommons.com/GitRepositoryIdentifier.test'
     })
     return { spine }
 }, async ({ spine, apis }: any) => {

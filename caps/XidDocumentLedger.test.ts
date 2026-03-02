@@ -2,7 +2,7 @@
 
 import crypto from 'crypto'
 import * as bunTest from 'bun:test'
-import { run } from 't44/standalone-rt'
+import { run } from '@stream44.studio/t44/standalone-rt'
 
 const {
     test: { describe, it, expect, workbenchDir },
@@ -17,7 +17,7 @@ const {
             '#': {
                 test: {
                     type: CapsulePropertyTypes.Mapping,
-                    value: 't44/caps/ProjectTest',
+                    value: '@stream44.studio/t44/caps/ProjectTest',
                     options: {
                         '#': {
                             bunTest,
@@ -46,7 +46,7 @@ const {
     }, {
         importMeta: import.meta,
         importStack: makeImportStack(),
-        capsuleName: 't44/caps/patterns/blockchaincommons.com/XidDocumentLedger.test'
+        capsuleName: '@stream44.studio/t44/caps/patterns/blockchaincommons.com/XidDocumentLedger.test'
     })
     return { spine }
 }, async ({ spine, apis }: any) => {
