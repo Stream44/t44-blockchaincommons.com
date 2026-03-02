@@ -3,6 +3,7 @@
     <td><a href="https://Stream44.Studio"><img src=".o/stream44.studio/assets/Icon-v1.svg" width="42" height="42"></a></td>
     <td><strong><a href="https://Stream44.Studio">Stream44 Studio</a></strong><br/>Open Development Project</td>
     <td>Preview release for community feedback.<br/>Get in touch on <a href="https://discord.gg/9eBcQXEJAN">discord</a>.</td>
+    <td>Hand Designed<br/><b>AI Coded Alpha</a></td>
   </tr>
 </table>
 
@@ -210,7 +211,6 @@ The following projects use `GordianOpenIntegrity`:
 
 - [t44](https://github.com/Stream44/t44) - A web3 + AI ready workspace
 - [Stream44.Studio](https://stream44.studio) - A **full-stack IDE** for building **embodied distributed systems**
-
 
 Provenance
 ===

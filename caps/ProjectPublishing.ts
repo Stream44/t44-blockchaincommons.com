@@ -134,8 +134,15 @@ export async function capsule({
                 push: {
                     type: CapsulePropertyTypes.Function,
                     value: async function (this: any, { config, ctx }: { config: any, ctx: any }) {
-                        const myMeta = ctx.metadata[capsule['#']]
-                        if (!myMeta?.oiEnabled) return
+                        const oiEnabled = config.config?.GordianOpenIntegrity === true
+                        if (!oiEnabled) return
+
+                        const myMeta = ctx.metadata[capsule['#']] || {}
+                        if (!myMeta.stageDir) {
+                            // Fallback: get stageDir from git-scm metadata
+                            myMeta.stageDir = ctx.metadata['t44/caps/patterns/git-scm.com/ProjectPublishing']?.stageDir
+                        }
+                        if (!myMeta.stageDir) return
 
                         const self = this
                         const stageDir = myMeta.stageDir
@@ -162,21 +169,10 @@ export async function capsule({
                             return { authorName: authorConfig.name, authorEmail: authorConfig.email, signingKeyPath, signingPublicKey, signingFingerprint, signingKeyName }
                         }
 
-                        const copyOiAndUpdateDid = async (dirs: (string | undefined | null)[], did: string) => {
+                        const copyOiFiles = async (dirs: (string | undefined | null)[]) => {
                             const oiFiles = await self.GordianOpenIntegrity.getTrackedFiles()
                             await copyFilesToSourceDirs({ files: oiFiles, sourceDir: stageDir, targetDirs: dirs })
                             console.log(chalk.green(`  ✓ Copied OI files to source directories`))
-                            const DID_PATTERN = /^(Repository DID: `)([^`]*)(`)$/m
-                            for (const dir of dirs.filter(Boolean)) {
-                                const readmePath = join(dir!, 'README.md')
-                                try {
-                                    const content = await readFile(readmePath, 'utf-8')
-                                    if (DID_PATTERN.test(content)) {
-                                        await writeFile(readmePath, content.replace(DID_PATTERN, `$1${did}$3`), 'utf-8')
-                                        console.log(chalk.green(`  ✓ Updated Repository DID in ${readmePath}`))
-                                    }
-                                } catch { }
-                            }
                         }
 
                         const storeGenerator = async (did: string) => {
@@ -256,7 +252,7 @@ export async function capsule({
                             const oiRegistryDir = await storeGenerator(repoResult.did)
                             await storeRepoMeta(oiRegistryDir, repoResult.did, repoResult.commitHash, originUri)
 
-                            await copyOiAndUpdateDid(targetDirs, repoResult.did)
+                            await copyOiFiles(targetDirs)
 
                             // Sync source files into the OI repo
                             console.log(`Syncing source files ...`)
@@ -331,7 +327,7 @@ export async function capsule({
                                 console.log(chalk.green(`  ✓ New trust root created`))
                                 console.log(chalk.green(`  ✓ DID: ${repoResult.did}`))
 
-                                await copyOiAndUpdateDid([stageDir, ...targetDirs], repoResult.did)
+                                await copyOiFiles([stageDir, ...targetDirs])
                                 await storeGenerator(repoResult.did)
 
                                 return
@@ -349,7 +345,7 @@ export async function capsule({
                             console.log(chalk.green(`  ✓ GordianOpenIntegrity initialized`))
                             console.log(chalk.green(`  ✓ DID: ${repoResult.did}`))
 
-                            await copyOiAndUpdateDid([stageDir, ...targetDirs], repoResult.did)
+                            await copyOiFiles([stageDir, ...targetDirs])
                             const oiRegistryDir = await storeGenerator(repoResult.did)
                             await storeRepoMeta(oiRegistryDir, repoResult.did, repoResult.commitHash, originUri)
 
@@ -366,6 +362,7 @@ export async function capsule({
                             sourceDir: stageDir,
                             targetDirs,
                         })
+
                     }
                 },
                 afterPush: {
