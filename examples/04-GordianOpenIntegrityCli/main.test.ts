@@ -127,6 +127,11 @@ describe('GordianOpenIntegrity CLI', function () {
     })
 
     it('should fail validation when a commit is unsigned regardless of strict setting', async function () {
+        // Disable all signing in the repo's local config (the init command sets up SSH signing)
+        await Bun.spawn(['git', 'config', '--local', '--unset', 'user.signingkey'], { cwd: REPO_DIR }).exited
+        await Bun.spawn(['git', 'config', '--local', '--unset', 'gpg.format'], { cwd: REPO_DIR }).exited
+        await Bun.spawn(['git', 'config', '--local', 'commit.gpgsign', 'false'], { cwd: REPO_DIR }).exited
+
         // Add an unsigned commit to the initialized repo
         const dummyFile = await fs.join({ parts: [REPO_DIR, 'unsigned-test.txt'] })
         await fs.writeFile({ path: dummyFile, content: 'test content' })
@@ -137,11 +142,7 @@ describe('GordianOpenIntegrity CLI', function () {
         })
         await addProc.exited
         const commitProc = Bun.spawn([
-            'git',
-            '-c', 'commit.gpgsign=false',
-            '-c', 'gpg.format=openpgp',
-            '-c', 'user.signingkey=',
-            'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'
+            'git', 'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'
         ], {
             cwd: REPO_DIR,
             stdout: 'pipe',
