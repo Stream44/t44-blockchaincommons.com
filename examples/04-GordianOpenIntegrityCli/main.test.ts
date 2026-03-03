@@ -136,12 +136,27 @@ describe('GordianOpenIntegrity CLI', function () {
             stderr: 'pipe',
         })
         await addProc.exited
-        const commitProc = Bun.spawn(['git', '-c', 'gpg.format=openpgp', 'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'], {
+        const commitProc = Bun.spawn([
+            'git',
+            '-c', 'commit.gpgsign=false',
+            '-c', 'gpg.format=openpgp',
+            '-c', 'user.signingkey=',
+            'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'
+        ], {
             cwd: REPO_DIR,
             stdout: 'pipe',
             stderr: 'pipe',
         })
         await commitProc.exited
+
+        // Verify the commit is truly unsigned by checking cat-file output
+        const hashProc = Bun.spawn(['git', 'rev-parse', 'HEAD'], { cwd: REPO_DIR, stdout: 'pipe' })
+        const commitHash = (await new Response(hashProc.stdout).text()).trim()
+        await hashProc.exited
+        const catProc = Bun.spawn(['git', 'cat-file', '-p', commitHash], { cwd: REPO_DIR, stdout: 'pipe' })
+        const catOutput = await new Response(catProc.stdout).text()
+        await catProc.exited
+        expect(catOutput).not.toContain('gpgsig ')
 
         // Validate without strict flag — should STILL fail because unsigned commits are always errors
         const proc = Bun.spawn(['bun', OI_BIN, 'validate', 'GordianOpenIntegrity'], {
@@ -154,6 +169,12 @@ describe('GordianOpenIntegrity CLI', function () {
         const exitCode = await proc.exited
 
         const output = stdout + stderr
+        if (exitCode !== 1) {
+            console.error('UNEXPECTED: Validation passed when it should have failed')
+            console.error('Exit code:', exitCode)
+            console.error('Output:', output)
+            console.error('Cat-file output for unsigned commit:', catOutput)
+        }
         expect(exitCode).toBe(1)
         expect(output).toContain('Repository integrity verification failed')
         expect(output).toContain('commit(s) are unsigned')
