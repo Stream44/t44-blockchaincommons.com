@@ -128,39 +128,33 @@ describe('GordianOpenIntegrity CLI', function () {
 
     it('should fail validation when a commit is unsigned regardless of strict setting', async function () {
         // To create a truly unsigned commit we must bypass ALL git signing config.
-        // The oi init command configures SSH signing in the repo's local .git/config.
-        // Using -c overrides and --no-gpg-sign is NOT enough because git's SSH signing
-        // ignores --no-gpg-sign when gpg.format=ssh is set locally.
-        // The only reliable approach: remove signing keys from .git/config directly.
-        const gitConfigPath = await fs.join({ parts: [REPO_DIR, '.git', 'config'] })
-        const gitConfig = await fs.readFile({ path: gitConfigPath })
-        const cleaned = gitConfig
-            .replace(/\s*signingkey\s*=.*/g, '')
-            .replace(/\s*gpgsign\s*=.*/g, '')
-            .replace(/^\[gpg "ssh"\]\n(\s*allowedSignersFile\s*=.*\n?)?/gm, '')
-            .replace(/^\[gpg\]\n(\s*format\s*=.*\n?)?/gm, '')
-        await fs.writeFile({ path: gitConfigPath, content: cleaned })
+        // The oi init command configures SSH signing in the repo's local .git/config
+        // (gpg.format=ssh, user.signingkey, commit.gpgsign=true).
+        // We overwrite these values to disable signing entirely.
+        const cfgSet = (key: string, val: string) =>
+            Bun.spawn(['git', 'config', '--local', key, val], { cwd: REPO_DIR }).exited
+        await cfgSet('commit.gpgsign', 'false')
+        await cfgSet('tag.gpgsign', 'false')
+        await cfgSet('gpg.format', 'openpgp')
+        await cfgSet('user.signingkey', '')
 
         // Add an unsigned commit to the initialized repo
         const dummyFile = await fs.join({ parts: [REPO_DIR, 'unsigned-test.txt'] })
         await fs.writeFile({ path: dummyFile, content: 'test content' })
-        const addProc = Bun.spawn(['git', 'add', 'unsigned-test.txt'], {
-            cwd: REPO_DIR,
-            stdout: 'pipe',
-            stderr: 'pipe',
-        })
-        await addProc.exited
+        await Bun.spawn(['git', 'add', 'unsigned-test.txt'], { cwd: REPO_DIR, stdout: 'pipe', stderr: 'pipe' }).exited
         const commitProc = Bun.spawn([
-            'git',
-            '-c', 'commit.gpgsign=false',
-            'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'
+            'git', 'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'
         ], {
             cwd: REPO_DIR,
             stdout: 'pipe',
             stderr: 'pipe',
         })
+        const commitStdout = await new Response(commitProc.stdout).text()
         const commitStderr = await new Response(commitProc.stderr).text()
         const commitExitCode = await commitProc.exited
+        if (commitExitCode !== 0) {
+            console.error('git commit failed:', commitExitCode, commitStderr, commitStdout)
+        }
         expect(commitExitCode).toBe(0)
 
         // Verify the commit is truly unsigned by checking cat-file output
