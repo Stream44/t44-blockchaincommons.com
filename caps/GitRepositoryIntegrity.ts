@@ -543,6 +543,7 @@ export async function capsule({
                         //      We only enforce envelope key matching when strict.signersAllAuthorized
                         //      is explicitly set.
                         let unsignedCount = 0
+                        let keyNotInEnvelopeCount = 0
                         if (audit.commits) {
                             for (const c of audit.commits) {
                                 if (!c.signatureValid) {
@@ -550,6 +551,7 @@ export async function capsule({
                                         unsignedCount++
                                         console.warn(`  [error] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — commit is NOT signed`)
                                     } else {
+                                        keyNotInEnvelopeCount++
                                         console.warn(`  [warn] Commit ${c.hash.slice(0, 8)} ("${c.message}") by ${c.authorName} <${c.authorEmail}> — signature key not in Gordian envelope (this is OK if the contributor's key was not added to the envelope)`)
                                     }
                                 }
@@ -557,6 +559,9 @@ export async function capsule({
                         }
                         if (unsignedCount > 0) {
                             issues.push(`${unsignedCount} commit(s) are unsigned — every commit must have a cryptographic signature`)
+                        }
+                        if (context.strict?.signersAllAuthorized && keyNotInEnvelopeCount > 0) {
+                            issues.push(`${keyNotInEnvelopeCount} commit(s) signed with keys not in Gordian envelope`)
                         }
 
                         // 6. XID from latest entry (no cross-version stability check needed)

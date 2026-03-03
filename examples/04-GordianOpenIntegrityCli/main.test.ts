@@ -122,5 +122,41 @@ describe('GordianOpenIntegrity CLI', function () {
         expect(output).toContain('Repository integrity verified')
         expect(output).toContain('XID:')
         expect(output).toContain('Commits:')
+        expect(output).toContain('Strict signers:     off')
+        expect(output).toContain('Strict repo id:     off')
+    })
+
+    it('should fail validation when a commit is unsigned regardless of strict setting', async function () {
+        // Add an unsigned commit to the initialized repo
+        const dummyFile = await fs.join({ parts: [REPO_DIR, 'unsigned-test.txt'] })
+        await fs.writeFile({ path: dummyFile, content: 'test content' })
+        const addProc = Bun.spawn(['git', 'add', 'unsigned-test.txt'], {
+            cwd: REPO_DIR,
+            stdout: 'pipe',
+            stderr: 'pipe',
+        })
+        await addProc.exited
+        const commitProc = Bun.spawn(['git', '-c', 'gpg.format=openpgp', 'commit', '--no-gpg-sign', '-m', 'unsigned commit for test'], {
+            cwd: REPO_DIR,
+            stdout: 'pipe',
+            stderr: 'pipe',
+        })
+        await commitProc.exited
+
+        // Validate without strict flag — should STILL fail because unsigned commits are always errors
+        const proc = Bun.spawn(['bun', OI_BIN, 'validate', 'GordianOpenIntegrity'], {
+            cwd: REPO_DIR,
+            stdout: 'pipe',
+            stderr: 'pipe',
+        })
+        const stdout = await new Response(proc.stdout).text()
+        const stderr = await new Response(proc.stderr).text()
+        const exitCode = await proc.exited
+
+        const output = stdout + stderr
+        expect(exitCode).toBe(1)
+        expect(output).toContain('Repository integrity verification failed')
+        expect(output).toContain('commit(s) are unsigned')
+        expect(output).toContain('Strict signers:     off')
     })
 })

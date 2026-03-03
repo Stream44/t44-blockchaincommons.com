@@ -222,8 +222,11 @@ export async function capsule({
                         await this.fs.writeFile({ path: tmpFile, content: lines.join('\n') + '\n' })
 
                         try {
+                            // NOTE: The allowedSignersFile MUST be passed to git log so that
+                            // %G? accurately reports signature status for SSH-signed commits.
+                            // Without it, git reports 'N' (no signature) for all SSH signatures.
                             const listResult = await this.run({
-                                args: ['log', '--format=%H|%s|%G?|%GK|%an|%ae|%cn', '--reverse'],
+                                args: ['-c', `gpg.ssh.allowedSignersFile=${tmpFile}`, 'log', '--format=%H|%s|%G?|%GK|%an|%ae|%cn', '--reverse'],
                                 cwd: context.repoDir,
                             })
                             if (listResult.exitCode !== 0) {
@@ -239,7 +242,21 @@ export async function capsule({
                                 const verifyResult = await this.run({ args: [...cfg, 'verify-commit', hash], cwd: context.repoDir })
                                 const verifyOutput = verifyResult.stderr || verifyResult.stdout
                                 const valid = verifyResult.exitCode === 0 && verifyOutput.includes('Good "git" signature')
-                                results.push({ hash, message, signatureStatus: sigStatus, keyFingerprint, authorName, authorEmail, committerName, signatureValid: valid, verifyOutput })
+
+                                // When %G? reports 'N' and verify-commit fails, the commit may
+                                // still be signed (e.g. GPG signature but gpg not installed, or
+                                // SSH key not in the allowed signers list). Check for a gpgsig
+                                // header in the raw commit object to distinguish truly unsigned
+                                // commits from signed-but-unverifiable ones.
+                                let effectiveSigStatus = sigStatus
+                                if (!valid && sigStatus === 'N') {
+                                    const catResult = await this.run({ args: ['cat-file', '-p', hash], cwd: context.repoDir })
+                                    if (catResult.stdout.includes('gpgsig ')) {
+                                        effectiveSigStatus = 'E'
+                                    }
+                                }
+
+                                results.push({ hash, message, signatureStatus: effectiveSigStatus, keyFingerprint, authorName, authorEmail, committerName, signatureValid: valid, verifyOutput })
                             }
 
                             const inceptionHash = commitLines[0]?.split('|')[0]
