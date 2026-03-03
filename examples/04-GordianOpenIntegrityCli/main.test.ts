@@ -137,6 +137,9 @@ describe('GordianOpenIntegrity CLI', function () {
         await cfgSet('tag.gpgsign', 'false')
         await cfgSet('gpg.format', 'openpgp')
         await cfgSet('user.signingkey', '')
+        // Ensure user identity is set (CI may not have global git config)
+        await cfgSet('user.name', 'Test User')
+        await cfgSet('user.email', 'test@example.com')
 
         // Add an unsigned commit to the initialized repo
         const dummyFile = await fs.join({ parts: [REPO_DIR, 'unsigned-test.txt'] })
