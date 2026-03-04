@@ -5,7 +5,7 @@ import { constants } from 'fs'
 import { $ } from 'bun'
 import chalk from 'chalk'
 
-const OI_REGISTRY_CAPSULE = '@t44.sh~t44~caps~patterns~blockchaincommons.com~GordianOpenIntegrity'
+const OI_REGISTRY_CAPSULE = '@stream44.studio~t44~caps~patterns~blockchaincommons.com~GordianOpenIntegrity'
 const GENERATOR_FILE = '.git/o/GordianOpenIntegrity-generator.yaml'
 
 async function copyFilesToSourceDirs({ files, sourceDir, targetDirs }: {
