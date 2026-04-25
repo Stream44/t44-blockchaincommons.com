@@ -5,8 +5,8 @@
 import { resolve } from 'path'
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { CapsuleSpineFactory } from "@stream44.studio/encapsulate/spine-factories/CapsuleSpineFactory.v0"
-import { CapsuleSpineContract } from "@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0/Membrane.v0"
+import { CapsuleSpineFactory } from "@stream44.studio/encapsulate/spine-factories/CapsuleSpineFactory"
+import { CapsuleSpineContract } from "@stream44.studio/encapsulate/spine-contracts/CapsuleSpineContract.v0/Membrane"
 
 const SUPPORTED_SYSTEMS = ['GordianOpenIntegrity']
 
@@ -117,6 +117,7 @@ program
     .option('--mark <mark>', 'Published provenance mark to verify against')
     .option('--strict-signers-all-authorized', 'Require all commit signers to be authorized in the Gordian envelope')
     .option('--strict-repo-identifier-is-inception-commit', 'Require the repository identifier to match the inception commit')
+    .option('--skip-signature-checks', 'Skip all commit signature checks (unsigned / key-not-in-envelope commits no longer fail verification)')
     .action(async (system, opts) => {
         validateSystem(system)
 
@@ -136,6 +137,7 @@ program
                 repoDir,
                 mark: opts.mark,
                 strict: Object.keys(strict).length > 0 ? strict : undefined,
+                skipSignatureChecks: !!opts.skipSignatureChecks,
             })
 
             console.log()
@@ -153,6 +155,7 @@ program
             console.log(chalk.white(`  XID stable:         ${result.xidStable ? 'yes' : 'no'}`))
             console.log(chalk.white(`  Strict signers:     ${strict.signersAllAuthorized ? 'on' : 'off'}`))
             console.log(chalk.white(`  Strict repo id:     ${strict.repoIdentifierIsInceptionCommit ? 'on' : 'off'}`))
+            console.log(chalk.white(`  Skip sig checks:    ${opts.skipSignatureChecks ? 'on' : 'off'}`))
 
             if (opts.mark) {
                 console.log(chalk.white(`  Mark matches latest: ${result.markMatchesLatest ? 'yes' : 'no'}`))

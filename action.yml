@@ -15,6 +15,10 @@ inputs:
     description: 'Require the repository identifier to match the inception commit (default: false)'
     required: false
     default: 'false'
+  skip-signature-checks:
+    description: 'Skip all commit signature checks — unsigned / key-not-in-envelope commits will no longer fail verification (default: false)'
+    required: false
+    default: 'false'
 
 branding:
   icon: 'shield'
@@ -58,5 +62,8 @@ runs:
         fi
         if [[ "${{ inputs.strict-repo-identifier-is-inception-commit }}" == "true" ]]; then
           STRICT_FLAGS="$STRICT_FLAGS --strict-repo-identifier-is-inception-commit"
+        fi
+        if [[ "${{ inputs.skip-signature-checks }}" == "true" ]]; then
+          STRICT_FLAGS="$STRICT_FLAGS --skip-signature-checks"
         fi
         bun ${{ github.action_path }}/bin/oi validate GordianOpenIntegrity $MARK_FLAG $STRICT_FLAGS

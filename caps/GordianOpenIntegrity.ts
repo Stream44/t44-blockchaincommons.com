@@ -451,6 +451,7 @@ export async function capsule({
                             repoIdentifierIsInceptionCommit?: boolean
                             signersAllAuthorized?: boolean
                         }
+                        skipSignatureChecks?: boolean
                     }) {
                         return this.integrity.verify(context)
                     }

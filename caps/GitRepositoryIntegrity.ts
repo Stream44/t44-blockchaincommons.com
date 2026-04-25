@@ -481,6 +481,11 @@ export async function capsule({
                             repoIdentifierIsInceptionCommit?: boolean
                             signersAllAuthorized?: boolean
                         }
+                        // When true, skip all commit-signature error accumulation.
+                        // The audit report is still produced so callers can inspect
+                        // per-commit status, but unsigned / key-not-in-envelope
+                        // commits no longer fail verification.
+                        skipSignatureChecks?: boolean
                     }) {
                         const issues: string[] = []
 
@@ -557,10 +562,10 @@ export async function capsule({
                                 }
                             }
                         }
-                        if (unsignedCount > 0) {
+                        if (unsignedCount > 0 && !context.skipSignatureChecks) {
                             issues.push(`${unsignedCount} commit(s) are unsigned — every commit must have a cryptographic signature`)
                         }
-                        if (context.strict?.signersAllAuthorized && keyNotInEnvelopeCount > 0) {
+                        if (context.strict?.signersAllAuthorized && keyNotInEnvelopeCount > 0 && !context.skipSignatureChecks) {
                             issues.push(`${keyNotInEnvelopeCount} commit(s) signed with keys not in Gordian envelope`)
                         }
 
@@ -579,7 +584,7 @@ export async function capsule({
                         }
 
                         // 8. Strict mode: validate all signers are authorized in XID document
-                        if (context.strict?.signersAllAuthorized) {
+                        if (context.strict?.signersAllAuthorized && !context.skipSignatureChecks) {
                             const signerResult = await this.validateSignerAuthorization({
                                 repoDir: context.repoDir,
                                 provenanceHistory: fullHistory,

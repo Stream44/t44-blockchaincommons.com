@@ -1186,3 +1186,106 @@ describe('Comprehensive — validate', function () {
     })
 })
 
+describe('verify — skipSignatureChecks', function () {
+
+    describe('unsigned commit passes verify when skipSignatureChecks is true', function () {
+
+        const keysDir = `${workbenchDir}/skip-sig-unsigned-keys`
+        const repoDir = `${workbenchDir}/skip-sig-unsigned-repo`
+
+        it('should return valid=true and not push unsigned issue when the flag is set', async function () {
+            const sigKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_author' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_prov' })
+            await oi.createRepository({
+                repoDir,
+                firstTrustKeyPath: sigKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
+                authorName: 'Author',
+                authorEmail: 'author@test.com',
+            })
+
+            // Add a truly unsigned commit
+            await git.addUnsignedCommit({ repoDir, authorName: 'Unsigned', authorEmail: 'unsigned@test.com', message: 'No signature commit' })
+
+            // Baseline: without the flag, verify should fail with an unsigned issue
+            const strictResult = await integrity.verify({ repoDir })
+            expect(strictResult.valid).toBe(false)
+            expect(strictResult.issues.some((i: string) => i.includes('unsigned'))).toBe(true)
+
+            // With skipSignatureChecks, verify passes and emits no unsigned issue
+            const lenientResult = await integrity.verify({ repoDir, skipSignatureChecks: true })
+            expect(lenientResult.valid).toBe(true)
+            expect(lenientResult.issues.some((i: string) => i.includes('unsigned'))).toBe(false)
+
+            // The audit report is still populated so callers can inspect status
+            expect(lenientResult.commits).toBeDefined()
+            const unsignedCommit = lenientResult.commits.find((c: any) => c.message === 'No signature commit')
+            expect(unsignedCommit).toBeDefined()
+            expect(unsignedCommit.signatureValid).toBe(false)
+            expect(unsignedCommit.signatureStatus).toBe('N')
+            expect(lenientResult.invalidSignatures).toBeGreaterThan(0)
+        })
+    })
+
+    describe('key-not-in-envelope passes strict.signersAllAuthorized when skipSignatureChecks is true', function () {
+
+        const keysDir = `${workbenchDir}/skip-sig-external-keys`
+        const repoDir = `${workbenchDir}/skip-sig-external-repo`
+
+        it('should suppress the key-not-in-envelope issue when both strict and skip flags are set', async function () {
+            const sigKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_sig' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_prov2' })
+            const externalKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_external' })
+            await oi.createRepository({
+                repoDir,
+                firstTrustKeyPath: sigKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
+                authorName: 'Author',
+                authorEmail: 'author@test.com',
+            })
+
+            // Add a commit signed by a key that is not in the Gordian envelope
+            await git.addSignedCommit({ repoDir, signingKeyPath: externalKey.privateKeyPath, authorName: 'External', authorEmail: 'external@test.com', message: 'External contributor commit' })
+
+            // Strict only: key-not-in-envelope is an issue
+            const strictResult = await integrity.verify({
+                repoDir,
+                strict: { signersAllAuthorized: true },
+            })
+            expect(strictResult.valid).toBe(false)
+            expect(strictResult.issues.some((i: string) => i.includes('not in Gordian envelope'))).toBe(true)
+
+            // Strict + skipSignatureChecks: issue is suppressed
+            const lenientResult = await integrity.verify({
+                repoDir,
+                strict: { signersAllAuthorized: true },
+                skipSignatureChecks: true,
+            })
+            expect(lenientResult.valid).toBe(true)
+            expect(lenientResult.issues.some((i: string) => i.includes('not in Gordian envelope'))).toBe(false)
+        })
+    })
+
+    describe('fully signed repo is unaffected by skipSignatureChecks', function () {
+
+        const keysDir = `${workbenchDir}/skip-sig-clean-keys`
+        const repoDir = `${workbenchDir}/skip-sig-clean-repo`
+
+        it('should still be valid when the flag is set on a clean repo', async function () {
+            const sigKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_clean' })
+            const provKey = await key.generateSigningKey({ keyDir: keysDir, keyName: 'skip_sig_clean_prov' })
+            await oi.createRepository({
+                repoDir,
+                firstTrustKeyPath: sigKey.privateKeyPath,
+                provenanceKeyPath: provKey.privateKeyPath,
+                authorName: 'Author',
+                authorEmail: 'author@test.com',
+            })
+
+            const result = await integrity.verify({ repoDir, skipSignatureChecks: true })
+            expect(result.valid).toBe(true)
+            expect(result.issues).toEqual([])
+        })
+    })
+})
+

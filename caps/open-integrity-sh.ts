@@ -51,11 +51,30 @@ async function ensureGitSigningConfig(): Promise<string> {
 
 async function runScript(scriptPath: string, args: string[], options: { cwd: string; env?: Record<string, string> }): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     await chmod(scriptPath, 0o755).catch(() => { })
-    const configPath = await ensureGitSigningConfig()
+    await ensureGitSigningConfig()
     const escaped = [scriptPath, ...args].map(a => $.escape(a)).join(' ')
     // Set ZDOTDIR to a non-existent path so zsh skips .zshenv/.zshrc (which trigger bun/workspace activation)
-    // Set GIT_CONFIG_GLOBAL so the scripts find the required signing config
-    const env = { ...process.env, ZDOTDIR: '/tmp/.zsh-no-dotfiles', GIT_CONFIG_GLOBAL: configPath, ...options.env }
+    // Use GIT_CONFIG_COUNT/KEY/VALUE to override git config with highest precedence (overrides local .git/config)
+    const env = {
+        ...process.env,
+        ZDOTDIR: '/tmp/.zsh-no-dotfiles',
+        GIT_CONFIG_GLOBAL: gitSigningConfigPath,
+        // GIT_CONFIG_COUNT overrides all other config sources including local .git/config
+        GIT_CONFIG_COUNT: '6',
+        GIT_CONFIG_KEY_0: 'user.name',
+        GIT_CONFIG_VALUE_0: 'Open Integrity SH',
+        GIT_CONFIG_KEY_1: 'user.email',
+        GIT_CONFIG_VALUE_1: 'oi-sh@test.local',
+        GIT_CONFIG_KEY_2: 'user.signingkey',
+        GIT_CONFIG_VALUE_2: gitSigningKeyPath,
+        GIT_CONFIG_KEY_3: 'gpg.format',
+        GIT_CONFIG_VALUE_3: 'ssh',
+        GIT_CONFIG_KEY_4: 'gpg.ssh.allowedSignersFile',
+        GIT_CONFIG_VALUE_4: gitAllowedSignersPath,
+        GIT_CONFIG_KEY_5: 'commit.gpgsign',
+        GIT_CONFIG_VALUE_5: 'true',
+        ...options.env
+    }
     const result = await $`/bin/zsh --no-rcs ${{ raw: escaped }}`.cwd(options.cwd).env(env).nothrow().quiet()
     return {
         stdout: result.stdout.toString().trim(),
